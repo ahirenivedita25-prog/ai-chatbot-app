@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08c9c6" />
+    <link rel="icon" type="image/svg+xml" href="/chatbot-logo.svg" />
+    <title>Chatdesk | AI support</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <section id="auth-panel" class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-card">
+        <img class="auth-logo" src="/chatbot-logo.svg" alt="" />
+        <p class="eyebrow">Private support desk</p>
+        <h1 id="auth-title">Sign in to chat.</h1>
+        <p class="auth-copy">
+          Your chatbot workspace is available to registered users only.
+        </p>
+        <form id="auth-form" class="auth-form">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" type="email" autocomplete="email" required />
+          <label for="auth-password">Password</label>
+          <input
+            id="auth-password"
+            type="password"
+            minlength="8"
+            autocomplete="current-password"
+            required
+          />
+          <button id="auth-submit" type="submit">
+            <span>Sign in</span><strong>↗</strong>
+          </button>
+          <p id="auth-error" class="auth-error" role="alert"></p>
+        </form>
+        <button id="auth-mode" class="text-button" type="button">
+          Create a new account
+        </button>
+      </div>
+    </section>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img class="brand-logo" src="/chatbot-logo.svg" alt="" /><span
+            >chatdesk</span
+          >
+        </div>
+        <div class="sidebar-copy">
+          <p class="eyebrow">AI support studio</p>
+          <h1>One calm place for every conversation.</h1>
+          <p>
+            Choose a service desk and send a test message to your chatbot API.
+          </p>
+        </div>
+        <div class="status">
+          <span class="status-dot"></span><span>API connected</span
+          ><code>/chat-status</code>
+        </div>
+      </aside>
+
+      <section class="workspace" aria-label="Chat workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Conversation room</p>
+            <h2 id="desk-title">School support</h2>
+          </div>
+          <button id="logout-button" class="logout-button" type="button">
+            Sign out
+          </button>
+          <label class="industry-picker"
+            >Service desk
+            <select id="industry-select">
+              <option value="school">School</option>
+              <option value="clinic">Clinic</option>
+              <option value="retail">Retail</option>
+              <option value="restaurant">Restaurant</option>
+            </select>
+          </label>
+        </header>
+
+        <div id="messages" class="messages" aria-live="polite">
+          <div class="message assistant">
+            <img class="avatar-logo" src="/chatbot-logo.svg" alt="" />
+            <div class="bubble">
+              <p>
+                Welcome. Ask me something and I’ll route it through the selected
+                support desk.
+              </p>
+              <time>Ready now</time>
+            </div>
+          </div>
+        </div>
+
+        <form id="chat-form" class="composer">
+          <label class="sr-only" for="message-input">Your message</label>
+          <input
+            id="message-input"
+            name="message"
+            autocomplete="off"
+            maxlength="2000"
+            placeholder="Ask about appointments, orders, fees..."
+            required
+          />
+          <button id="send-button" type="submit">
+            <span>Send</span><strong>↗</strong>
+          </button>
+        </form>
+        <p class="composer-note">
+          Test environment · Messages are sent to your local API
+        </p>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

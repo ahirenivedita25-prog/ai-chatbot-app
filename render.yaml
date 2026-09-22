@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ai-chatbot-startup
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /chat-status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true

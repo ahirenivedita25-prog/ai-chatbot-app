@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" role="img" aria-labelledby="title desc">
+  <title id="title">Chatdesk chatbot logo</title>
+  <desc id="desc">A friendly robot inside a turquoise speech bubble.</desc>
+  <defs>
+    <linearGradient id="bubble" x1="70" y1="25" x2="255" y2="270" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#19D9D1"/>
+      <stop offset="1" stop-color="#08C9C6"/>
+    </linearGradient>
+    <linearGradient id="shell" x1="118" y1="92" x2="215" y2="218" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FCFE"/>
+      <stop offset="1" stop-color="#DCE7ED"/>
+    </linearGradient>
+    <pattern id="scanlines" width="3" height="3" patternUnits="userSpaceOnUse">
+      <rect width="3" height="1" fill="#0FE0D5" opacity=".34"/>
+    </pattern>
+  </defs>
+  <path fill="url(#bubble)" d="M152 19C73 19 22 74 22 143c0 39 20 73 54 94 5 3 7 9 5 15l-13 34c-2 6 5 10 10 6l49-30c10 3 22 4 34 4 80 0 132-51 132-124S236 19 152 19Z"/>
+  <path fill="none" stroke="#263044" stroke-linecap="round" stroke-width="6" d="M158 65V35"/>
+  <circle cx="158" cy="29" r="6" fill="#263044"/>
+  <circle cx="158" cy="29" r="14" fill="none" stroke="#F3FCFF" stroke-width="2"/>
+  <circle cx="158" cy="29" r="21" fill="none" stroke="#F3FCFF" stroke-width="2" opacity=".85"/>
+  <path fill="#DDE8EE" d="M109 76c0-12 10-21 22-21h55c12 0 22 9 22 21v11H109V76Z"/>
+  <path fill="url(#shell)" stroke="#DCE7ED" stroke-width="5" d="M91 102c0-30 24-53 54-53h31c30 0 54 23 54 53v81c0 30-24 53-54 53h-31c-30 0-54-23-54-53v-81Z"/>
+  <path fill="#DCE7ED" d="M91 105H78c-12 0-21 10-21 22v26c0 12 9 22 21 22h13v-70Zm139 0h13c12 0 21 10 21 22v26c0 12-9 22-21 22h-13v-70Z"/>
+  <rect x="103" y="92" width="115" height="83" rx="35" fill="#2B3042"/>
+  <rect x="103" y="92" width="115" height="83" rx="35" fill="url(#scanlines)"/>
+  <ellipse cx="139" cy="127" rx="11" ry="15" fill="#0FE0D5"/>
+  <ellipse cx="181" cy="127" rx="11" ry="15" fill="#0FE0D5"/>
+  <path d="M140 151c10 16 30 16 40 0" fill="none" stroke="#0FE0D5" stroke-linecap="round" stroke-width="7"/>
+  <rect x="149" y="222" width="21" height="18" rx="7" fill="#2B3042"/>
+  <path fill="#F8FCFE" stroke="#DCE7ED" stroke-width="5" d="M111 241h98c18 0 31 8 40 25H72c8-17 21-25 39-25Z"/>
+  <path d="M126 266c2-9 4-16 8-22m52 22c-3-9-5-16-8-22" fill="none" stroke="#B8CBD5" stroke-linecap="round" stroke-width="6"/>
+</svg>
