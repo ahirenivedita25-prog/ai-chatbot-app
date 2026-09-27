@@ -16,6 +16,14 @@ const authSubmit = document.querySelector("#auth-submit");
 const authError = document.querySelector("#auth-error");
 const logoutButton = document.querySelector("#logout-button");
 let isRegistering = false;
+let currentIndustry = select.value;
+const pendingIndustries = new Set();
+const conversationHistory = {
+  school: [],
+  clinic: [],
+  retail: [],
+  restaurant: [],
+};
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition;
@@ -65,7 +73,10 @@ function renderPrompts(industry) {
   }
 }
 
-function addMessage(text, role) {
+function addMessage(text, role, industry = currentIndustry, persist = true) {
+  if (persist) conversationHistory[industry].push({ text, role });
+  if (industry !== currentIndustry) return;
+
   const wrapper = document.createElement("div");
   wrapper.className = `message ${role}`;
   const avatar =
@@ -76,6 +87,24 @@ function addMessage(text, role) {
   wrapper.querySelector("p").textContent = text;
   messages.append(wrapper);
   messages.scrollTop = messages.scrollHeight;
+}
+
+function renderConversation(industry) {
+  messages.replaceChildren();
+  addMessage(
+    "Welcome. Choose a prompt or write a question to explore this service desk.",
+    "assistant",
+    industry,
+    false,
+  );
+  for (const message of conversationHistory[industry]) {
+    if (message.role === "error") {
+      addRetryMessage(message.text, message.originalQuestion, industry, false);
+    } else {
+      addMessage(message.text, message.role, industry, false);
+    }
+  }
+  starterPrompts.hidden = conversationHistory[industry].length > 0;
 }
 
 function setAuthenticated(token) {
@@ -91,6 +120,13 @@ function setVoiceStatus(message) {
   chatStatus.textContent = message;
 }
 
+function updateComposerState() {
+  const pending = pendingIndustries.has(currentIndustry);
+  input.disabled = pending;
+  button.disabled = pending;
+  voiceButton.disabled = pending || !recognition;
+}
+
 function addTypingIndicator() {
   const wrapper = document.createElement("div");
   wrapper.className = "message assistant typing-message";
@@ -100,14 +136,34 @@ function addTypingIndicator() {
   return wrapper;
 }
 
-function addRetryMessage(message, originalQuestion) {
+function addRetryMessage(
+  message,
+  originalQuestion,
+  industry = currentIndustry,
+  persist = true,
+) {
+  if (persist)
+    conversationHistory[industry].push({
+      text: message,
+      role: "error",
+      originalQuestion,
+    });
+  if (industry !== currentIndustry) return;
+
   const wrapper = document.createElement("div");
   wrapper.className = "message assistant error-message";
   wrapper.innerHTML = `<img class="avatar-logo" src="/chatbot-mark.svg" alt="" /><div class="bubble"><p></p><button class="retry-button" type="button">Try again</button></div>`;
   wrapper.querySelector("p").textContent = message;
   wrapper.querySelector("button").addEventListener("click", () => {
+    const errorIndex = conversationHistory[industry].findIndex(
+      (entry) =>
+        entry.role === "error" &&
+        entry.text === message &&
+        entry.originalQuestion === originalQuestion,
+    );
+    if (errorIndex >= 0) conversationHistory[industry].splice(errorIndex, 1);
     wrapper.remove();
-    sendMessage(originalQuestion, false);
+    sendMessage(originalQuestion, false, industry);
   });
   messages.append(wrapper);
   messages.scrollTop = messages.scrollHeight;
@@ -227,28 +283,37 @@ logoutButton.addEventListener("click", () => {
 
 if (token()) authPanel.hidden = true;
 
-renderPrompts(select.value);
+renderPrompts(currentIndustry);
+renderConversation(currentIndustry);
 
 select.addEventListener("change", () => {
-  title.textContent = labels[select.value];
-  renderPrompts(select.value);
-  addMessage(
-    `You are now chatting with ${labels[select.value].toLowerCase()}.`,
-    "assistant",
+  currentIndustry = select.value;
+  title.textContent = labels[currentIndustry];
+  renderPrompts(currentIndustry);
+  renderConversation(currentIndustry);
+  updateComposerState();
+  setVoiceStatus(
+    conversationHistory[currentIndustry].length
+      ? `${labels[currentIndustry]} conversation restored.`
+      : `${labels[currentIndustry]} desk ready.`,
   );
 });
 
-async function sendMessage(message, addUserMessage = true) {
-  if (addUserMessage) addMessage(message, "user");
+async function sendMessage(
+  message,
+  addUserMessage = true,
+  industry = currentIndustry,
+) {
+  if (addUserMessage) addMessage(message, "user", industry);
+  if (industry !== currentIndustry) return;
   starterPrompts.hidden = true;
-  input.disabled = true;
-  button.disabled = true;
-  voiceButton.disabled = true;
+  pendingIndustries.add(industry);
+  updateComposerState();
   const typingIndicator = addTypingIndicator();
   setVoiceStatus("Preparing a sample reply...");
 
   try {
-    const response = await fetch(`/api/${select.value}/chat`, {
+    const response = await fetch(`/api/${industry}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -267,22 +332,26 @@ async function sendMessage(message, addUserMessage = true) {
     if (!response.ok)
       throw new Error(result.error || "The assistant could not respond.");
     typingIndicator.remove();
-    addMessage(result.reply, "assistant");
-    speakReply(result.reply);
-    setVoiceStatus("Sample reply received.");
+    addMessage(result.reply, "assistant", industry);
+    if (industry === currentIndustry) {
+      speakReply(result.reply);
+      setVoiceStatus("Sample reply received.");
+    }
   } catch (error) {
-    typingIndicator.remove();
+    if (industry === currentIndustry) typingIndicator.remove();
     const errorText =
       error.message === "Failed to fetch"
         ? "Could not reach the service. Check your connection and try again."
         : error.message;
-    addRetryMessage(errorText, message);
-    setVoiceStatus("Message could not be delivered.");
+    addRetryMessage(errorText, message, industry);
+    if (industry === currentIndustry)
+      setVoiceStatus("Message could not be delivered.");
   } finally {
-    input.disabled = false;
-    button.disabled = false;
-    voiceButton.disabled = !recognition;
-    input.focus();
+    pendingIndustries.delete(industry);
+    if (industry === currentIndustry) {
+      updateComposerState();
+      input.focus();
+    }
   }
 }
 
