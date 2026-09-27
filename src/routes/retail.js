@@ -1,18 +1,27 @@
 const express = require("express");
 const { validateMessage } = require("../utils/validator");
+const { generateReply } = require("../services/chatbot.service");
 
 const router = express.Router();
 
-router.post("/chat", (req, res) => {
+router.post("/chat", async (req, res) => {
   const validation = validateMessage(req.body);
   if (!validation.valid)
     return res.status(400).json({ error: validation.error });
 
-  return res.json({
-    industry: "retail",
-    reply:
-      "Retail support can help with products, orders, and delivery updates.",
-  });
+  try {
+    return res.json({
+      industry: "retail",
+      reply: await generateReply({
+        industry: "retail",
+        message: req.body.message.trim(),
+      }),
+    });
+  } catch (error) {
+    return res
+      .status(502)
+      .json({ error: "The AI service is temporarily unavailable" });
+  }
 });
 
 module.exports = router;

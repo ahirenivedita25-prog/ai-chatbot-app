@@ -24,7 +24,7 @@ Chat endpoints accept JSON such as `{ "message": "What are your opening hours?" 
 
 ## Configuration
 
-Copy `config/env.example` to `.env` and set values as needed. WhatsApp delivery remains in safe local stub mode until both `WHATSAPP_API_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are configured. The current database adapter is an in-memory placeholder; replace it with a production database before deploying.
+Copy `config/env.example` to `.env` and set values as needed. Configure `AI_API_KEY` to enable real answers for every service desk. `AI_API_URL` must point to an OpenAI-compatible chat-completions endpoint and `AI_MODEL` selects the deployed model. Without the key, the app returns an explicit prototype-mode fallback. WhatsApp delivery remains in safe local stub mode until both `WHATSAPP_API_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are configured. The current database adapter is an in-memory placeholder; replace it with a production database before deploying.
 
 ## Deploy to Render
 
@@ -37,6 +37,8 @@ This repository includes `render.yaml` for a free Render web service.
 5. Open the generated `https://...onrender.com/` URL.
 
 Render uses `npm install`, `npm start`, and `/chat-status` automatically. The Blueprint generates `JWT_SECRET`; do not commit a local `.env` file or paste secrets into source control. The free service may sleep after inactivity.
+
+After the Render service is created, add `AI_API_KEY`, `AI_API_URL`, and `AI_MODEL` under **Environment**. Keep `AI_API_KEY` secret. The default values are `https://api.openai.com/v1/chat/completions` and `gpt-4o-mini`; use the endpoint and model supplied by your chosen provider.
 
 ## User access
 

@@ -163,9 +163,8 @@ p {
 h1 {
   max-width: 360px;
   margin-bottom: 18px;
-  font-size: clamp(38px, 5vw, 64px);
+  font-size: 42px;
   line-height: 0.98;
-  letter-spacing: -0.04em;
 }
 .sidebar-copy > p:last-child {
   color: #536d72;
@@ -211,6 +210,11 @@ h1 {
   padding: 30px 34px 22px;
   border-bottom: 1px solid var(--line);
 }
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
 h2 {
   margin: 0;
   font-size: 28px;
@@ -253,6 +257,37 @@ select {
   flex-direction: row-reverse;
   margin-left: auto;
 }
+.starter-prompts {
+  max-width: 700px;
+  margin: 0 0 24px 42px;
+  animation: rise 0.35s ease both;
+}
+.starter-prompts[hidden] {
+  display: none;
+}
+.prompt-heading {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.prompt-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.prompt-chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+}
+.prompt-chip:hover,
+.prompt-chip:focus-visible {
+  border-color: var(--teal);
+  background: var(--sky);
+}
 .avatar,
 .avatar-logo {
   display: grid;
@@ -287,6 +322,39 @@ select {
   margin-bottom: 7px;
   line-height: 1.5;
 }
+.typing-message .bubble {
+  min-width: 82px;
+  padding: 17px;
+}
+.typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.typing-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: pulse 0.9s ease-in-out infinite alternate;
+}
+.typing-dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.error-message .bubble {
+  border-color: #efb3a8;
+  background: #fff8f6;
+}
+.retry-button {
+  min-height: 34px;
+  margin-top: 7px;
+  padding: 0 11px;
+  background: var(--ink);
+  font-size: 12px;
+}
 time {
   color: var(--muted);
   font:
@@ -299,6 +367,9 @@ time {
   padding: 22px 34px 12px;
   border-top: 1px solid var(--line);
   background: var(--panel);
+}
+.composer input {
+  flex: 1 1 auto;
 }
 input {
   min-width: 0;
@@ -339,13 +410,47 @@ button:disabled {
   opacity: 0.55;
   cursor: wait;
 }
-.composer-note {
-  margin: 0;
+.voice-button {
+  justify-content: center;
+  min-width: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.voice-button[aria-pressed="true"] {
+  border-color: var(--coral);
+  background: #fff0eb;
+}
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 0 34px 20px;
+}
+.composer-note {
+  min-height: 16px;
+  margin: 0;
   color: var(--muted);
   font:
     10px "DM Mono",
     monospace;
+}
+.speech-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.speech-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--teal);
 }
 .sr-only {
   position: absolute;
@@ -366,6 +471,12 @@ button:disabled {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+@keyframes pulse {
+  to {
+    opacity: 0.35;
+    transform: translateY(-3px);
   }
 }
 @media (max-width: 720px) {
@@ -392,13 +503,48 @@ button:disabled {
     border-radius: 16px;
   }
   .topbar,
-  .messages,
-  .composer {
+  .messages {
     padding-left: 18px;
     padding-right: 18px;
   }
-  .topbar {
-    align-items: start;
+  .composer {
+    padding: 16px 18px 10px;
+    gap: 7px;
+  }
+  .composer input {
+    padding: 13px 10px;
+  }
+  .composer button {
+    gap: 8px;
+    padding: 0 11px;
+  }
+  .composer-footer {
+    align-items: flex-start;
     flex-direction: column;
+    padding: 0 18px 16px;
+    gap: 8px;
+  }
+  .topbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .topbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .starter-prompts {
+    margin-left: 0;
+  }
+  .prompt-list {
+    gap: 6px;
+  }
+  .prompt-chip {
+    min-height: 40px;
+  }
+  .voice-button {
+    min-width: 42px;
+    padding: 0 8px;
+    font-size: 11px;
   }
 }

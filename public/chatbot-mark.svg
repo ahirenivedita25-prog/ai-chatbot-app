@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Chatdesk mark</title>
+  <desc id="desc">A compact turquoise speech bubble with a friendly robot face.</desc>
+  <path fill="#08C9C6" d="M64 8C31.4 8 8 30.4 8 60c0 17.2 8.5 32.5 22 42l-7 18c-1.2 3.1 2.1 5.9 5 4.1l18.9-11.8c5.4 1.8 11.1 2.7 17.1 2.7 32.6 0 56-22.4 56-55S96.6 8 64 8Z"/>
+  <path fill="#263044" d="M64 23v10" stroke="#263044" stroke-linecap="round" stroke-width="6"/>
+  <circle cx="64" cy="18" r="5" fill="#263044"/>
+  <rect x="27" y="37" width="74" height="57" rx="22" fill="#F8FCFE" stroke="#DCE7ED" stroke-width="5"/>
+  <rect x="35" y="48" width="58" height="34" rx="15" fill="#263044"/>
+  <circle cx="51" cy="64" r="6" fill="#0FE0D5"/>
+  <circle cx="77" cy="64" r="6" fill="#0FE0D5"/>
+  <path d="M53 73c6 6 16 6 22 0" fill="none" stroke="#0FE0D5" stroke-linecap="round" stroke-width="5"/>
+</svg>

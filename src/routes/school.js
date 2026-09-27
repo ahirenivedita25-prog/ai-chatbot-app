@@ -1,20 +1,29 @@
 const express = require("express");
 const { validateMessage } = require("../utils/validator");
 const analytics = require("../services/analytics.service");
+const { generateReply } = require("../services/chatbot.service");
 
 const router = express.Router();
 
-router.post("/chat", (req, res) => {
+router.post("/chat", async (req, res) => {
   const validation = validateMessage(req.body);
   if (!validation.valid)
     return res.status(400).json({ error: validation.error });
 
   analytics.track("chat_message", { industry: "school" });
-  return res.json({
-    industry: "school",
-    reply:
-      "School support is ready to help with fees, schedules, and admissions.",
-  });
+  try {
+    return res.json({
+      industry: "school",
+      reply: await generateReply({
+        industry: "school",
+        message: req.body.message.trim(),
+      }),
+    });
+  } catch (error) {
+    return res
+      .status(502)
+      .json({ error: "The AI service is temporarily unavailable" });
+  }
 });
 
 module.exports = router;
