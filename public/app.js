@@ -73,6 +73,60 @@ function renderPrompts(industry) {
   }
 }
 
+function replyText(reply) {
+  if (typeof reply === "string") return reply;
+  return [
+    reply.summary,
+    ...(reply.details || []),
+    ...(reply.nextSteps || []),
+    reply.caveat,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function renderReplyContent(container, reply) {
+  const structured = typeof reply === "object" && reply !== null;
+  if (!structured) {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = reply;
+    container.append(paragraph);
+    return;
+  }
+
+  const summary = document.createElement("p");
+  summary.className = "reply-summary";
+  summary.textContent = reply.summary;
+  container.append(summary);
+
+  const sections = [
+    ["Details", reply.details, "reply-details"],
+    ["Next steps", reply.nextSteps, "reply-next-steps"],
+  ];
+  for (const [heading, items, className] of sections) {
+    if (!items?.length) continue;
+    const section = document.createElement("section");
+    section.className = `reply-section ${className}`;
+    const label = document.createElement("h3");
+    label.textContent = heading;
+    const list = document.createElement("ul");
+    for (const item of items) {
+      const listItem = document.createElement("li");
+      listItem.textContent = item;
+      list.append(listItem);
+    }
+    section.append(label, list);
+    container.append(section);
+  }
+
+  if (reply.caveat) {
+    const caveat = document.createElement("p");
+    caveat.className = "reply-caveat";
+    caveat.textContent = reply.caveat;
+    container.append(caveat);
+  }
+}
+
 function addMessage(text, role, industry = currentIndustry, persist = true) {
   if (persist) conversationHistory[industry].push({ text, role });
   if (industry !== currentIndustry) return;
@@ -83,8 +137,10 @@ function addMessage(text, role, industry = currentIndustry, persist = true) {
     role === "user"
       ? `<span class="avatar user-avatar">↗</span>`
       : `<img class="avatar-logo" src="/chatbot-mark.svg" alt="" />`;
-  wrapper.innerHTML = `${avatar}<div class="bubble"><p></p><time>${role === "user" ? "Just now" : "Prototype reply"}</time></div>`;
-  wrapper.querySelector("p").textContent = text;
+  wrapper.innerHTML = `${avatar}<div class="bubble"><div class="reply-content"></div><time>${role === "user" ? "Just now" : "AI response"}</time></div>`;
+  if (role === "assistant")
+    renderReplyContent(wrapper.querySelector(".reply-content"), text);
+  else wrapper.querySelector(".reply-content").textContent = text;
   messages.append(wrapper);
   messages.scrollTop = messages.scrollHeight;
 }
@@ -310,7 +366,7 @@ async function sendMessage(
   pendingIndustries.add(industry);
   updateComposerState();
   const typingIndicator = addTypingIndicator();
-  setVoiceStatus("Preparing a sample reply...");
+  setVoiceStatus("Preparing your answer...");
 
   try {
     const response = await fetch(`/api/${industry}/chat`, {
@@ -334,8 +390,8 @@ async function sendMessage(
     typingIndicator.remove();
     addMessage(result.reply, "assistant", industry);
     if (industry === currentIndustry) {
-      speakReply(result.reply);
-      setVoiceStatus("Sample reply received.");
+      speakReply(replyText(result.reply));
+      setVoiceStatus("Answer received.");
     }
   } catch (error) {
     if (industry === currentIndustry) typingIndicator.remove();

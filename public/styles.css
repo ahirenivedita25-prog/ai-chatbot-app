@@ -322,6 +322,44 @@ select {
   margin-bottom: 7px;
   line-height: 1.5;
 }
+.reply-content > p:last-child,
+.reply-content > section:last-child,
+.reply-content > .reply-caveat:last-child {
+  margin-bottom: 0;
+}
+.reply-summary {
+  font-size: 16px;
+  line-height: 1.45;
+}
+.reply-section {
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+.reply-section h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font:
+    500 10px "DM Mono",
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.reply-section ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 19px;
+}
+.reply-section li {
+  line-height: 1.45;
+}
+.reply-caveat {
+  margin-top: 15px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .typing-message .bubble {
   min-width: 82px;
   padding: 17px;
