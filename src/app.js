@@ -13,7 +13,7 @@ const rateLimit = require("express-rate-limit");
 const app = express();
 app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(express.json({ limit: "20kb" }));
+app.use(express.json({ limit: "8mb" }));
 app.use(express.static(path.join(__dirname, "../public")));
 
 const apiLimiter = rateLimit({

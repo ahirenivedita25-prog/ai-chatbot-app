@@ -24,7 +24,7 @@ Chat endpoints accept JSON such as `{ "message": "What are your opening hours?" 
 
 ## Configuration
 
-Copy `config/env.example` to `.env` and set values as needed. Configure `AI_API_KEY` to enable real answers for every service desk. `AI_API_URL` must point to an OpenAI-compatible chat-completions endpoint and `AI_MODEL` selects the provider's deployed model. `AI_ASSISTANT_NAME` controls the shared assistant identity and defaults to `moonlit`; it is not sent as the provider model ID. Without the key, the app returns an explicit configuration fallback. WhatsApp delivery remains in safe local stub mode until both `WHATSAPP_API_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are configured. The current database adapter is an in-memory placeholder; replace it with a production database before deploying.
+Copy `config/env.example` to `.env` and set values as needed. Configure `AI_API_KEY` to enable real answers for every service desk. `AI_API_URL` must point to an OpenAI-compatible chat-completions endpoint and `AI_MODEL` selects the provider model ID (for example, a Gemini model ID). `AI_ASSISTANT_NAME` controls the shared assistant identity and defaults to `moonlit`; it is not a separately trained model and must not replace the provider model ID. Without provider credentials, the app returns an explicit configuration fallback. WhatsApp credentials are optional and only needed when a WhatsApp integration is connected; the current WhatsApp sender helper is not yet exposed through a send route or webhook. User accounts are in-memory and browser chat history is stored locally; use durable, access-controlled storage before production.
 
 ## Deploy to Render
 
@@ -38,7 +38,9 @@ This repository includes `render.yaml` for a free Render web service.
 
 Render uses `npm install`, `npm start`, and `/chat-status` automatically. The Blueprint generates `JWT_SECRET`; do not commit a local `.env` file or paste secrets into source control. The free service may sleep after inactivity.
 
-After the Render service is created, add `AI_API_KEY`, `AI_API_URL`, and `AI_MODEL` under **Environment**. Keep `AI_API_KEY` secret. The default values are `https://api.openai.com/v1/chat/completions` and `gpt-4o-mini`; use the endpoint and model supplied by your chosen provider.
+After the Render service is created, add `AI_API_KEY`, `AI_API_URL`, `AI_MODEL`, and optionally `AI_ASSISTANT_NAME=moonlit` under **Environment**. Keep `AI_API_KEY` secret. For Gemini's OpenAI-compatible endpoint, use `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` and the exact Gemini model ID enabled for your key. The Render service requires the API key even though the assistant is named Moonlit. Add `WHATSAPP_API_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` only when enabling the separate WhatsApp integration.
+
+The chat UI supports up to four PNG/JPEG/WebP images or plain-text/Markdown/CSV/JSON files per message (1 MB each). Images are sent to the configured model for analysis; text-file contents are included as context. Chat history and attachment names are local to the browser, not shared across devices.
 
 ## User access
 

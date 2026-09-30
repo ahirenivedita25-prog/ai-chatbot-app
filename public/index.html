@@ -12,8 +12,8 @@
     <section id="auth-panel" class="auth-panel" aria-labelledby="auth-title">
       <div class="auth-card">
         <img class="auth-logo" src="/chatbot-mark.svg" alt="" />
-        <p class="eyebrow">Private support desk</p>
-        <h1 id="auth-title">Sign in to chat.</h1>
+        <p class="eyebrow">Moonlit private assistant</p>
+        <h1 id="auth-title">Sign in to Moonlit.</h1>
         <p class="auth-copy">
           Your chatbot workspace is available to registered users only.
         </p>
@@ -38,40 +38,57 @@
         </button>
       </div>
     </section>
-    <main class="shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <img class="brand-logo" src="/chatbot-mark.svg" alt="" /><span
-            >moonlit</span
-          >
+    <main class="app-shell">
+      <aside id="sidebar" class="sidebar" aria-label="Main navigation">
+        <a class="brand" href="/" aria-label="Moonlit home">
+          <img class="brand-logo" src="/chatbot-mark.svg" alt="" />
+          <span>moonlit</span>
+        </a>
+        <button id="new-chat" class="nav-action primary-action" type="button">
+          <span class="icon" aria-hidden="true">+</span><span>New chat</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button id="invite-button" class="nav-action" type="button">
+          <span class="icon" aria-hidden="true">↗</span><span>Invite</span>
+        </button>
+        <div class="history-heading">
+          <span>Chat history</span><span id="history-count">0</span>
         </div>
-        <div class="sidebar-copy">
-          <p class="eyebrow">One shared AI assistant</p>
-          <h1>Clear answers for every service desk.</h1>
-          <p>
-            moonlit adapts its guidance to schools, clinics, retail, and
-            restaurants without changing models.
-          </p>
-        </div>
-        <div class="capability-list" aria-label="Assistant capabilities">
-          <span>Context aware</span><span>Structured replies</span
-          ><span>Voice ready</span>
-        </div>
-        <div class="status">
-          <span class="status-dot"></span><span>API connected</span
-          ><code>/chat-status</code>
+        <nav
+          id="chat-history"
+          class="chat-history"
+          aria-label="Chat history"
+        ></nav>
+        <div class="sidebar-footer">
+          <div class="admin-profile">
+            <span class="profile-avatar" aria-hidden="true">M</span>
+            <span class="profile-copy"
+              ><strong>Moonlit</strong><small>Admin workspace</small></span
+            >
+            <span class="profile-menu" aria-hidden="true">···</span>
+          </div>
         </div>
       </aside>
 
-      <section class="workspace" aria-label="Chat workspace">
+      <section class="workspace" aria-label="Moonlit chat workspace">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">moonlit workspace</p>
-            <h2 id="desk-title">School support</h2>
+          <button
+            id="mobile-menu"
+            class="icon-button mobile-menu"
+            type="button"
+            aria-label="Open navigation"
+          >
+            ☰
+          </button>
+          <div class="conversation-heading">
+            <h1 id="conversation-title">New conversation</h1>
+            <p>
+              <span class="online-dot"></span>Moonlit · One shared assistant
+            </p>
           </div>
           <div class="topbar-actions">
-            <label class="industry-picker"
-              >Service desk
+            <label class="industry-picker" for="industry-select">
+              <span>Desk</span>
               <select id="industry-select">
                 <option value="school">School</option>
                 <option value="clinic">Clinic</option>
@@ -85,49 +102,62 @@
           </div>
         </header>
 
-        <div id="messages" class="messages" aria-live="polite">
-          <div class="message assistant">
-            <img class="avatar-logo" src="/chatbot-mark.svg" alt="" />
-            <div class="bubble">
-              <p>
-                Welcome. Choose a prompt or write a question to explore this
-                service desk.
-              </p>
-              <time>Ready now</time>
-            </div>
-          </div>
-        </div>
-
+        <div id="messages" class="messages" aria-live="polite"></div>
         <section
           id="starter-prompts"
           class="starter-prompts"
           aria-label="Suggested questions"
         >
-          <p id="prompt-heading" class="prompt-heading">Try a question</p>
+          <p class="prompt-heading">What can I help with?</p>
           <div id="prompt-list" class="prompt-list"></div>
         </section>
 
+        <div
+          id="attachment-tray"
+          class="attachment-tray"
+          aria-live="polite"
+        ></div>
         <form id="chat-form" class="composer">
-          <label class="sr-only" for="message-input">Your message</label>
           <input
-            id="message-input"
-            name="message"
-            autocomplete="off"
-            maxlength="2000"
-            placeholder="Ask a question or choose a suggestion..."
-            required
+            id="attachment-input"
+            type="file"
+            hidden
+            multiple
+            accept="image/png,image/jpeg,image/webp,text/plain,text/markdown,text/csv,application/json"
           />
           <button
+            id="attach-button"
+            class="composer-tool"
+            type="button"
+            aria-label="Attach files"
+            title="Attach images or text files"
+          >
+            ＋
+          </button>
+          <label class="sr-only" for="message-input">Your message</label>
+          <textarea
+            id="message-input"
+            name="message"
+            rows="1"
+            maxlength="4000"
+            placeholder="Message Moonlit..."
+          ></textarea>
+          <button
             id="voice-input"
-            class="voice-button"
+            class="composer-tool voice-button"
             type="button"
             aria-label="Start voice input"
             aria-pressed="false"
-            title="Start voice input"
+            title="Dictate message"
           >
-            <span aria-hidden="true">Dictate</span>
+            <span aria-hidden="true">◉</span>
           </button>
-          <button id="send-button" type="submit">
+          <button
+            id="send-button"
+            class="send-button"
+            type="submit"
+            aria-label="Send message"
+          >
             <span>Send</span><strong>↗</strong>
           </button>
         </form>
@@ -138,15 +168,14 @@
             role="status"
             aria-live="polite"
           >
-            AI assistant · Responses are generated from your selected service
-            desk
+            AI assistant · Attached files are sent to the configured model
           </p>
-          <label class="speech-toggle" for="read-aloud">
-            <input id="read-aloud" type="checkbox" />
-            Read replies aloud
-          </label>
+          <label class="speech-toggle" for="read-aloud"
+            ><input id="read-aloud" type="checkbox" /> Read aloud</label
+          >
         </div>
       </section>
+      <div id="sidebar-scrim" class="sidebar-scrim" hidden></div>
     </main>
     <script src="/app.js"></script>
   </body>

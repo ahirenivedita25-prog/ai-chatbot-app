@@ -15,6 +15,7 @@ router.post("/chat", async (req, res) => {
       reply: await generateReply({
         industry: "retail",
         message: req.body.message.trim(),
+        attachments: req.body.attachments || [],
       }),
     });
   } catch (error) {
