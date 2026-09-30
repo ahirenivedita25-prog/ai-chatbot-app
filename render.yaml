@@ -3,6 +3,8 @@ services:
     name: ai-chatbot-startup
     runtime: node
     plan: free
+    branch: chatbot
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /chat-status
