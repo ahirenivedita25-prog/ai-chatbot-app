@@ -24,7 +24,7 @@ Chat endpoints accept JSON such as `{ "message": "What are your opening hours?" 
 
 ## Configuration
 
-Copy `config/env.example` to `.env` and set values as needed. Configure `AI_API_KEY` to enable real answers for every service desk. `AI_API_URL` must point to an OpenAI-compatible chat-completions endpoint and `AI_MODEL` selects the deployed model. Without the key, the app returns an explicit prototype-mode fallback. WhatsApp delivery remains in safe local stub mode until both `WHATSAPP_API_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are configured. The current database adapter is an in-memory placeholder; replace it with a production database before deploying.
+Copy `config/env.example` to `.env` and set values as needed. Configure `AI_API_KEY` to enable real answers for every service desk. `AI_API_URL` must point to an OpenAI-compatible chat-completions endpoint and `AI_MODEL` selects the provider's deployed model. `AI_ASSISTANT_NAME` controls the shared assistant identity and defaults to `moonlit`; it is not sent as the provider model ID. Without the key, the app returns an explicit configuration fallback. WhatsApp delivery remains in safe local stub mode until both `WHATSAPP_API_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are configured. The current database adapter is an in-memory placeholder; replace it with a production database before deploying.
 
 ## Deploy to Render
 

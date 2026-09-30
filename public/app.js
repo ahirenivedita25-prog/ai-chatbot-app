@@ -156,7 +156,7 @@ function addMessage(text, role, industry = currentIndustry, persist = true) {
 function renderConversation(industry) {
   messages.replaceChildren();
   addMessage(
-    "Welcome. Choose a prompt or write a question to explore this service desk.",
+    "Welcome. I am moonlit. Choose a prompt or write a question to explore this service desk.",
     "assistant",
     industry,
     false,

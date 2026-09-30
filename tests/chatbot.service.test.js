@@ -45,6 +45,7 @@ test("chatbot service sends industry context to the AI provider", async () => {
     });
     assert.equal(payload.messages[0].role, "system");
     assert.match(payload.messages[0].content, /clinic desk/i);
+    assert.match(payload.messages[0].content, /moonlit/i);
     assert.equal(
       payload.messages[1].content,
       "Do you have appointments tomorrow?",

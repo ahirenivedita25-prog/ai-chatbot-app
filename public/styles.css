@@ -10,6 +10,8 @@
   --sky: #dff9f7;
   --teal: #08c9c6;
   --coral: #ff866d;
+  --moon: #6d5dfc;
+  --moon-soft: #eeecff;
 }
 * {
   box-sizing: border-box;
@@ -170,6 +172,22 @@ h1 {
   color: #536d72;
   line-height: 1.55;
 }
+.capability-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: auto 0 24px;
+}
+.capability-list span {
+  padding: 7px 9px;
+  border: 1px solid rgba(21, 32, 29, 0.13);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.45);
+  color: #536d72;
+  font:
+    10px "DM Mono",
+    monospace;
+}
 .status {
   display: flex;
   align-items: center;
@@ -209,6 +227,7 @@ h1 {
   gap: 20px;
   padding: 30px 34px 22px;
   border-bottom: 1px solid var(--line);
+  background: linear-gradient(100deg, #ffffff, #fbfbff);
 }
 .topbar-actions {
   display: flex;
@@ -287,6 +306,9 @@ select {
 .prompt-chip:focus-visible {
   border-color: var(--teal);
   background: var(--sky);
+}
+.brand span {
+  color: var(--moon);
 }
 .avatar,
 .avatar-logo {

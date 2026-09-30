@@ -1,4 +1,5 @@
 const defaultApiUrl = "https://api.openai.com/v1/chat/completions";
+const assistantName = process.env.AI_ASSISTANT_NAME || "moonlit";
 
 const industryGuidance = {
   school: "school fees, schedules, admissions, and family support",
@@ -72,7 +73,7 @@ async function generateReply({ industry, message, transport = fetch }) {
       messages: [
         {
           role: "system",
-          content: `You are one shared AI support assistant serving the ${industry} desk. Help with ${industryGuidance[industry]}. Return ONLY valid JSON with this exact shape: {"summary":"one direct answer","reasoning":"one brief rationale, never private chain-of-thought","details":["supporting fact"],"nextSteps":["action the user can take"],"caveat":"short limitation or empty string"}. Keep every field concise and use empty arrays when a section is not useful. Tailor every field to the user's question. Do not invent account, payment, medical, legal, or appointment details. Say what information is needed or direct the user to staff when the answer requires private or live data.`,
+          content: `You are ${assistantName}, one shared AI support assistant serving the ${industry} desk. Help with ${industryGuidance[industry]}. Return ONLY valid JSON with this exact shape: {"summary":"one direct answer","reasoning":"one brief rationale, never private chain-of-thought","details":["supporting fact"],"nextSteps":["action the user can take"],"caveat":"short limitation or empty string"}. Keep every field concise and use empty arrays when a section is not useful. Tailor every field to the user's question. Do not invent account, payment, medical, legal, or appointment details. Say what information is needed or direct the user to staff when the answer requires private or live data.`,
         },
         { role: "user", content: message },
       ],
