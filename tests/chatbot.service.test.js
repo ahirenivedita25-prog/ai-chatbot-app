@@ -21,6 +21,8 @@ test("chatbot service sends industry context to the AI provider", async () => {
                 message: {
                   content: JSON.stringify({
                     summary: "Appointments may be available tomorrow.",
+                    reasoning:
+                      "The clinic schedule determines live availability.",
                     details: ["Availability changes during the day."],
                     nextSteps: ["Call the clinic to confirm a time."],
                     caveat: "Live booking access is not connected.",
@@ -36,12 +38,13 @@ test("chatbot service sends industry context to the AI provider", async () => {
     const payload = JSON.parse(request.options.body);
     assert.deepEqual(reply, {
       summary: "Appointments may be available tomorrow.",
+      reasoning: "The clinic schedule determines live availability.",
       details: ["Availability changes during the day."],
       nextSteps: ["Call the clinic to confirm a time."],
       caveat: "Live booking access is not connected.",
     });
     assert.equal(payload.messages[0].role, "system");
-    assert.match(payload.messages[0].content, /clinic support/i);
+    assert.match(payload.messages[0].content, /clinic desk/i);
     assert.equal(
       payload.messages[1].content,
       "Do you have appointments tomorrow?",
@@ -94,6 +97,7 @@ test("chatbot service formats a plain provider response safely", async () => {
 
   assert.deepEqual(reply, {
     summary: "Please share the restaurant location.",
+    reasoning: "The provider returned a plain-text answer.",
     details: [],
     nextSteps: [],
     caveat: "",

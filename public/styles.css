@@ -331,6 +331,12 @@ select {
   font-size: 16px;
   line-height: 1.45;
 }
+.reply-reasoning {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .reply-section {
   margin-top: 16px;
   padding-top: 13px;

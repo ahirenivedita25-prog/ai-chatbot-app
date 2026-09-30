@@ -10,6 +10,7 @@ const industryGuidance = {
 function fallbackReply(industry) {
   return {
     summary: `${industry[0].toUpperCase()}${industry.slice(1)} support is not configured yet.`,
+    reasoning: "The shared AI provider is not configured for this deployment.",
     details: [
       `Configure AI_API_KEY to get answers about ${industryGuidance[industry]}.`,
     ],
@@ -31,6 +32,8 @@ function structuredReply(content) {
     }
     return {
       summary: parsed.summary.trim(),
+      reasoning:
+        typeof parsed.reasoning === "string" ? parsed.reasoning.trim() : "",
       details: Array.isArray(parsed.details)
         ? parsed.details.filter((item) => typeof item === "string").slice(0, 5)
         : [],
@@ -44,6 +47,7 @@ function structuredReply(content) {
   } catch {
     return {
       summary: cleaned,
+      reasoning: "The provider returned a plain-text answer.",
       details: [],
       nextSteps: [],
       caveat: "",
@@ -68,7 +72,7 @@ async function generateReply({ industry, message, transport = fetch }) {
       messages: [
         {
           role: "system",
-          content: `You are the ${industry} support assistant. Help with ${industryGuidance[industry]}. Return ONLY valid JSON with this exact shape: {"summary":"one direct answer","details":["supporting fact"],"nextSteps":["action the user can take"],"caveat":"short limitation or empty string"}. Keep each item concise and use empty arrays when a section is not useful. Tailor every field to the user's question. Do not invent account, payment, medical, legal, or appointment details. Say what information is needed or direct the user to staff when the answer requires private or live data.`,
+          content: `You are one shared AI support assistant serving the ${industry} desk. Help with ${industryGuidance[industry]}. Return ONLY valid JSON with this exact shape: {"summary":"one direct answer","reasoning":"one brief rationale, never private chain-of-thought","details":["supporting fact"],"nextSteps":["action the user can take"],"caveat":"short limitation or empty string"}. Keep every field concise and use empty arrays when a section is not useful. Tailor every field to the user's question. Do not invent account, payment, medical, legal, or appointment details. Say what information is needed or direct the user to staff when the answer requires private or live data.`,
         },
         { role: "user", content: message },
       ],
@@ -76,6 +80,19 @@ async function generateReply({ industry, message, transport = fetch }) {
   });
 
   if (!response.ok) {
+    let providerMessage = "";
+    try {
+      const errorBody = await response.json();
+      providerMessage = errorBody.error?.message || errorBody.message || "";
+    } catch {
+      providerMessage = "";
+    }
+    console.error("AI provider request failed", {
+      status: response.status,
+      message: providerMessage,
+      model: process.env.AI_MODEL || "gpt-4o-mini",
+      url: process.env.AI_API_URL || defaultApiUrl,
+    });
     throw new Error(
       `AI provider request failed with status ${response.status}`,
     );

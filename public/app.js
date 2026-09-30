@@ -77,6 +77,7 @@ function replyText(reply) {
   if (typeof reply === "string") return reply;
   return [
     reply.summary,
+    reply.reasoning,
     ...(reply.details || []),
     ...(reply.nextSteps || []),
     reply.caveat,
@@ -98,6 +99,13 @@ function renderReplyContent(container, reply) {
   summary.className = "reply-summary";
   summary.textContent = reply.summary;
   container.append(summary);
+
+  if (reply.reasoning) {
+    const reasoning = document.createElement("p");
+    reasoning.className = "reply-reasoning";
+    reasoning.textContent = reply.reasoning;
+    container.append(reasoning);
+  }
 
   const sections = [
     ["Details", reply.details, "reply-details"],
