@@ -36,15 +36,10 @@ test("chatbot service sends industry context to the AI provider", async () => {
     });
 
     const payload = JSON.parse(request.options.body);
-    assert.deepEqual(reply, {
-      summary: "Appointments may be available tomorrow.",
-      reasoning: "The clinic schedule determines live availability.",
-      details: ["Availability changes during the day."],
-      nextSteps: ["Call the clinic to confirm a time."],
-      caveat: "Live booking access is not connected.",
-      table: null,
-      chart: null,
-    });
+    assert.equal(typeof reply, "string");
+    assert.match(reply, /Appointments may be available tomorrow/);
+    assert.match(reply, /Call the clinic to confirm a time/);
+    assert.doesNotMatch(reply, /"summary"|"reasoning"/);
     assert.equal(payload.messages[0].role, "system");
     assert.match(payload.messages[0].content, /clinic desk/i);
     assert.match(payload.messages[0].content, /moonlit/i);
@@ -56,10 +51,7 @@ test("chatbot service sends industry context to the AI provider", async () => {
       request.options.headers.Authorization,
       "Bearer test-provider-key",
     );
-    assert.match(
-      payload.messages[0].content,
-      /Return ONLY valid JSON with this exact shape/,
-    );
+    assert.match(payload.messages[0].content, /plain text/);
   } finally {
     if (originalKey === undefined) delete process.env.AI_API_KEY;
     else process.env.AI_API_KEY = originalKey;
@@ -75,8 +67,8 @@ test("chatbot service explains when real AI is not configured", async () => {
       industry: "school",
       message: "How do fees work?",
     });
-    assert.match(reply.summary, /not configured/i);
-    assert.match(reply.details[0], /AI_API_KEY/);
+    assert.match(reply, /not configured/i);
+    assert.match(reply, /AI_API_KEY/);
   } finally {
     if (originalKey === undefined) delete process.env.AI_API_KEY;
     else process.env.AI_API_KEY = originalKey;
@@ -84,33 +76,29 @@ test("chatbot service explains when real AI is not configured", async () => {
 });
 
 test("chatbot service formats a plain provider response safely", async () => {
+  const originalKey = process.env.AI_API_KEY;
   process.env.AI_API_KEY = "test-provider-key";
-  const reply = await generateReply({
-    industry: "restaurant",
-    message: "Are you open?",
-    transport: async () => ({
-      ok: true,
-      json: async () => ({
-        choices: [
-          { message: { content: "Please share the restaurant location." } },
-        ],
+  try {
+    const reply = await generateReply({
+      industry: "restaurant",
+      message: "Are you open?",
+      transport: async () => ({
+        ok: true,
+        json: async () => ({
+          choices: [
+            { message: { content: "Please share the restaurant location." } },
+          ],
+        }),
       }),
-    }),
-  });
-
-  assert.deepEqual(reply, {
-    summary: "Please share the restaurant location.",
-    reasoning: "The provider returned a plain-text answer.",
-    details: [],
-    nextSteps: [],
-    caveat: "",
-    table: null,
-    chart: null,
-  });
-  delete process.env.AI_API_KEY;
+    });
+    assert.equal(reply, "Please share the restaurant location.");
+  } finally {
+    if (originalKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = originalKey;
+  }
 });
 
-test("chatbot service forwards images and normalizes visual data", async () => {
+test("chatbot service forwards images and returns a plain-text answer", async () => {
   const originalKey = process.env.AI_API_KEY;
   process.env.AI_API_KEY = "test-provider-key";
   let payload;
@@ -134,21 +122,7 @@ test("chatbot service forwards images and normalizes visual data", async () => {
             choices: [
               {
                 message: {
-                  content: JSON.stringify({
-                    summary: "Sales increased over the period.",
-                    table: {
-                      columns: ["Month", "Sales"],
-                      rows: [
-                        ["May", "12"],
-                        ["June", "18"],
-                      ],
-                    },
-                    chart: {
-                      type: "bar",
-                      labels: ["May", "June"],
-                      values: [12, 18],
-                    },
-                  }),
+                  content: "Sales increased over the period.",
                 },
               },
             ],
@@ -159,8 +133,120 @@ test("chatbot service forwards images and normalizes visual data", async () => {
 
     assert.equal(payload.messages[1].content[0].type, "text");
     assert.equal(payload.messages[1].content[1].type, "image_url");
-    assert.equal(reply.table.rows.length, 2);
-    assert.deepEqual(reply.chart.values, [12, 18]);
+    assert.equal(reply, "Sales increased over the period.");
+  } finally {
+    if (originalKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = originalKey;
+  }
+});
+
+test("chatbot service includes text attachments and converts legacy JSON to text", async () => {
+  const originalKey = process.env.AI_API_KEY;
+  process.env.AI_API_KEY = "test-provider-key";
+  let payload;
+
+  try {
+    const reply = await generateReply({
+      industry: "school",
+      message: "Summarize this note",
+      attachments: [
+        { name: "notes.txt", type: "text/plain", text: "Bring the form." },
+      ],
+      transport: async (_url, options) => {
+        payload = JSON.parse(options.body);
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    summary: "Bring the completed form.",
+                    details: ["The note mentions a form."],
+                  }),
+                },
+              },
+            ],
+          }),
+        };
+      },
+    });
+
+    assert.match(payload.messages[1].content, /Bring the form\./);
+    assert.equal(
+      reply,
+      "Bring the completed form.\n\nThe note mentions a form.",
+    );
+    assert.doesNotMatch(reply, /^[{[]|"summary"/);
+  } finally {
+    if (originalKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = originalKey;
+  }
+});
+
+test("chatbot service never exposes unrecognized provider JSON", async () => {
+  const originalKey = process.env.AI_API_KEY;
+  process.env.AI_API_KEY = "test-provider-key";
+
+  try {
+    const reply = await generateReply({
+      industry: "school",
+      message: "What is the answer?",
+      transport: async () => ({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  answer: "Forty-two.",
+                  metadata: { source: "the attached note" },
+                  reasoning: "This internal reasoning must stay private.",
+                }),
+              },
+            },
+          ],
+        }),
+      }),
+    });
+
+    assert.equal(reply, "Forty-two.\n\nthe attached note");
+    assert.doesNotMatch(reply, /[{}\[\]]|reasoning|metadata/);
+  } finally {
+    if (originalKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = originalKey;
+  }
+});
+
+test("chatbot service replaces JSON without an answer with a readable fallback", async () => {
+  const originalKey = process.env.AI_API_KEY;
+  process.env.AI_API_KEY = "test-provider-key";
+
+  try {
+    const reply = await generateReply({
+      industry: "school",
+      message: "Can you help?",
+      transport: async () => ({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  reasoning: "This private reasoning is not an answer.",
+                }),
+              },
+            },
+          ],
+        }),
+      }),
+    });
+
+    assert.equal(
+      reply,
+      "I couldn't produce a readable answer. Please try asking again.",
+    );
+    assert.doesNotMatch(reply, /reasoning|[{}]/);
   } finally {
     if (originalKey === undefined) delete process.env.AI_API_KEY;
     else process.env.AI_API_KEY = originalKey;

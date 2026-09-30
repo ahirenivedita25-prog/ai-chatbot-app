@@ -1,7 +1,6 @@
 const form = document.querySelector("#chat-form");
 const input = document.querySelector("#message-input");
 const messages = document.querySelector("#messages");
-const select = document.querySelector("#industry-select");
 const title = document.querySelector("#conversation-title");
 const button = document.querySelector("#send-button");
 const voiceButton = document.querySelector("#voice-input");
@@ -10,8 +9,6 @@ const attachmentInput = document.querySelector("#attachment-input");
 const attachmentTray = document.querySelector("#attachment-tray");
 const readAloud = document.querySelector("#read-aloud");
 const chatStatus = document.querySelector("#chat-status");
-const starterPrompts = document.querySelector("#starter-prompts");
-const promptList = document.querySelector("#prompt-list");
 const historyList = document.querySelector("#chat-history");
 const historyCount = document.querySelector("#history-count");
 const newChatButton = document.querySelector("#new-chat");
@@ -25,8 +22,10 @@ const authMode = document.querySelector("#auth-mode");
 const authSubmit = document.querySelector("#auth-submit");
 const authError = document.querySelector("#auth-error");
 const logoutButton = document.querySelector("#logout-button");
+const profileMenuButton = document.querySelector("#profile-menu-button");
+const profileMenu = document.querySelector("#profile-menu");
 let isRegistering = false;
-let currentIndustry = select.value;
+let currentIndustry = "school";
 const storageKey = "moonlit_chats_v1";
 let attachments = [];
 let threads = [];
@@ -40,29 +39,6 @@ const labels = {
   clinic: "Clinic support",
   retail: "Retail support",
   restaurant: "Restaurant support",
-};
-
-const prompts = {
-  school: [
-    "How do I pay fees?",
-    "What are the school hours?",
-    "How do I apply?",
-  ],
-  clinic: [
-    "How do I book an appointment?",
-    "What are your hours?",
-    "What services do you offer?",
-  ],
-  retail: [
-    "How can I track my order?",
-    "What is your return policy?",
-    "What payment methods do you accept?",
-  ],
-  restaurant: [
-    "What time do you open?",
-    "Do you offer delivery?",
-    "Can I book a table?",
-  ],
 };
 
 function loadThreads() {
@@ -117,7 +93,6 @@ function createThread(industry = currentIndustry) {
   threads.unshift(thread);
   activeThreadId = thread.id;
   currentIndustry = industry;
-  select.value = industry;
   input.value = "";
   attachments = [];
   renderAttachmentTray();
@@ -156,9 +131,7 @@ function openThread(id) {
   if (!thread) return;
   activeThreadId = id;
   currentIndustry = thread.industry;
-  select.value = currentIndustry;
   title.textContent = thread.title;
-  renderPrompts(currentIndustry);
   renderConversation();
   renderAttachmentTray();
   updateComposerState();
@@ -174,21 +147,6 @@ function openSidebar() {
 function closeSidebar() {
   sidebar.classList.remove("open");
   sidebarScrim.hidden = true;
-}
-
-function renderPrompts(industry) {
-  promptList.replaceChildren();
-  for (const prompt of prompts[industry]) {
-    const promptButton = document.createElement("button");
-    promptButton.type = "button";
-    promptButton.className = "prompt-chip";
-    promptButton.textContent = prompt;
-    promptButton.addEventListener("click", () => {
-      input.value = prompt;
-      input.focus();
-    });
-    promptList.append(promptButton);
-  }
 }
 
 function renderAttachmentTray() {
@@ -234,15 +192,22 @@ function readFile(file) {
 }
 
 async function handleFiles(files) {
+  const selectedFiles = Array.from(files);
   const remaining = Math.max(0, 4 - attachments.length);
-  for (const file of Array.from(files).slice(0, remaining)) {
+  if (selectedFiles.length > remaining) {
+    setVoiceStatus("You can attach up to 4 files per message.");
+  }
+  for (const file of selectedFiles.slice(0, remaining)) {
     if (file.size > 1024 * 1024) {
       setVoiceStatus(`${file.name} is over the 1 MB attachment limit.`);
       continue;
     }
+    const isImage = ["image/png", "image/jpeg", "image/webp"].includes(
+      file.type,
+    );
     const isTextFile =
       file.type.startsWith("text/") || file.type === "application/json";
-    if (!file.type.startsWith("image/") && !isTextFile) {
+    if (!isImage && !isTextFile) {
       setVoiceStatus(`${file.name} is not a supported image or text file.`);
       continue;
     }
@@ -265,137 +230,21 @@ async function handleFiles(files) {
 
 function replyText(reply) {
   if (typeof reply === "string") return reply;
+  if (!reply || typeof reply !== "object") return String(reply ?? "");
   return [
     reply.summary,
-    reply.reasoning,
     ...(reply.details || []),
     ...(reply.nextSteps || []),
-    ...(reply.table?.rows?.flat() || []),
-    ...(reply.chart?.labels || []),
     reply.caveat,
   ]
     .filter(Boolean)
-    .join(" ");
+    .join("\n\n");
 }
 
 function renderReplyContent(container, reply) {
-  const structured = typeof reply === "object" && reply !== null;
-  if (!structured) {
-    const paragraph = document.createElement("p");
-    paragraph.textContent = reply;
-    container.append(paragraph);
-    return;
-  }
-
-  const summary = document.createElement("p");
-  summary.className = "reply-summary";
-  summary.textContent = reply.summary;
-  container.append(summary);
-
-  if (reply.reasoning) {
-    const reasoning = document.createElement("p");
-    reasoning.className = "reply-reasoning";
-    reasoning.textContent = reply.reasoning;
-    container.append(reasoning);
-  }
-
-  const sections = [
-    ["Details", reply.details, "reply-details"],
-    ["Next steps", reply.nextSteps, "reply-next-steps"],
-  ];
-  for (const [heading, items, className] of sections) {
-    if (!items?.length) continue;
-    const section = document.createElement("section");
-    section.className = `reply-section ${className}`;
-    const label = document.createElement("h3");
-    label.textContent = heading;
-    const list = document.createElement("ul");
-    for (const item of items) {
-      const listItem = document.createElement("li");
-      listItem.textContent = item;
-      list.append(listItem);
-    }
-    section.append(label, list);
-    container.append(section);
-  }
-
-  if (reply.table?.columns?.length && reply.table.rows?.length) {
-    const section = document.createElement("section");
-    section.className = "reply-section reply-table-section";
-    const label = document.createElement("h3");
-    label.textContent = reply.table.title || "Data";
-    const table = document.createElement("table");
-    const head = document.createElement("thead");
-    const headerRow = document.createElement("tr");
-    for (const column of reply.table.columns) {
-      const cell = document.createElement("th");
-      cell.textContent = column;
-      headerRow.append(cell);
-    }
-    head.append(headerRow);
-    const body = document.createElement("tbody");
-    for (const row of reply.table.rows) {
-      const tableRow = document.createElement("tr");
-      for (const value of row) {
-        const cell = document.createElement("td");
-        cell.textContent = value;
-        tableRow.append(cell);
-      }
-      body.append(tableRow);
-    }
-    table.append(head, body);
-    section.append(label, table);
-    container.append(section);
-  }
-
-  if (reply.chart?.labels?.length && reply.chart.values?.length) {
-    const section = document.createElement("section");
-    section.className = "reply-section reply-chart-section";
-    const label = document.createElement("h3");
-    label.textContent = reply.chart.title || "Overview";
-    const chart = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    chart.setAttribute("viewBox", "0 0 420 190");
-    chart.setAttribute("role", "img");
-    chart.setAttribute("aria-label", label.textContent);
-    const maximum = Math.max(...reply.chart.values, 1);
-    const count = Math.min(reply.chart.values.length, 8);
-    const slot = 390 / count;
-    for (let index = 0; index < count; index += 1) {
-      const value = reply.chart.values[index];
-      const barHeight = Math.max(3, (value / maximum) * 125);
-      const rect = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "rect",
-      );
-      rect.setAttribute("x", String(18 + index * slot));
-      rect.setAttribute("y", String(140 - barHeight));
-      rect.setAttribute("width", String(Math.max(10, slot - 12)));
-      rect.setAttribute("height", String(barHeight));
-      rect.setAttribute("rx", "5");
-      rect.setAttribute("class", "chart-bar");
-      const caption = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "text",
-      );
-      caption.setAttribute("x", String(18 + index * slot + (slot - 12) / 2));
-      caption.setAttribute("y", "164");
-      caption.setAttribute("text-anchor", "middle");
-      caption.textContent = String(reply.chart.labels[index] || "").slice(
-        0,
-        12,
-      );
-      chart.append(rect, caption);
-    }
-    section.append(label, chart);
-    container.append(section);
-  }
-
-  if (reply.caveat) {
-    const caveat = document.createElement("p");
-    caveat.className = "reply-caveat";
-    caveat.textContent = reply.caveat;
-    container.append(caveat);
-  }
+  const paragraph = document.createElement("p");
+  paragraph.textContent = replyText(reply);
+  container.append(paragraph);
 }
 
 function addMessage(
@@ -416,7 +265,6 @@ function addMessage(
     });
     if (isFirstUserMessage && threadId === activeThreadId) {
       messages.querySelector(".welcome-state")?.remove();
-      starterPrompts.hidden = true;
     }
     thread.updatedAt = Date.now();
     if (role === "user" && thread.title === "New conversation") {
@@ -473,7 +321,7 @@ function renderConversation() {
   if (!thread.messages.length) {
     const intro = document.createElement("div");
     intro.className = "welcome-state";
-    intro.innerHTML = `<img src="/chatbot-mark.svg" alt="" /><p class="eyebrow">Moonlit assistant</p><h2>What are we working on?</h2><p>Ask a question, attach a file, or choose a starting point.</p>`;
+    intro.innerHTML = `<img src="/chatbot-mark.svg" alt="" /><p class="eyebrow">Moonlit assistant</p><h2>What are we working on?</h2><p>Ask a question or attach a file.</p>`;
     messages.append(intro);
   }
   for (const message of thread.messages) {
@@ -495,7 +343,6 @@ function renderConversation() {
       );
     }
   }
-  starterPrompts.hidden = thread.messages.length > 0;
   messages.scrollTop = messages.scrollHeight;
 }
 
@@ -579,7 +426,6 @@ if (SpeechRecognition) {
     voiceButton.setAttribute("aria-pressed", "true");
     voiceButton.setAttribute("aria-label", "Stop voice input");
     voiceButton.title = "Stop voice input";
-    voiceButton.querySelector("span").textContent = "Stop";
     setVoiceStatus("Listening. Speak now, then review your draft.");
   });
 
@@ -603,7 +449,6 @@ if (SpeechRecognition) {
     voiceButton.setAttribute("aria-pressed", "false");
     voiceButton.setAttribute("aria-label", "Start voice input");
     voiceButton.title = "Start voice input";
-    voiceButton.querySelector("span").textContent = "Dictate";
   });
 
   voiceButton.addEventListener("click", () => {
@@ -697,26 +542,9 @@ if (!threads.length) {
 }
 activeThreadId = threads[0].id;
 currentIndustry = activeThread().industry;
-select.value = currentIndustry;
-renderPrompts(currentIndustry);
 renderConversation();
 renderHistory();
 persistThreads();
-
-select.addEventListener("change", () => {
-  currentIndustry = select.value;
-  const thread = activeThread();
-  if (thread?.messages.length) {
-    createThread(currentIndustry);
-    return;
-  }
-  if (thread) thread.industry = currentIndustry;
-  renderPrompts(currentIndustry);
-  renderConversation();
-  persistThreads();
-  updateComposerState();
-  setVoiceStatus(`${labels[currentIndustry]} desk ready.`);
-});
 
 newChatButton.addEventListener("click", () => createThread(currentIndustry));
 inviteButton.addEventListener("click", async () => {
@@ -729,18 +557,72 @@ inviteButton.addEventListener("click", async () => {
 });
 mobileMenu.addEventListener("click", openSidebar);
 sidebarScrim.addEventListener("click", closeSidebar);
+function closeProfileMenu(restoreFocus = false) {
+  profileMenu.hidden = true;
+  profileMenuButton.setAttribute("aria-expanded", "false");
+  if (restoreFocus) profileMenuButton.focus();
+}
+
+profileMenuButton.addEventListener("click", () => {
+  const opening = profileMenu.hidden;
+  profileMenu.hidden = !opening;
+  profileMenuButton.setAttribute("aria-expanded", String(opening));
+  if (opening) profileMenu.querySelector('[role="menuitem"]').focus();
+});
+
+profileMenu.addEventListener("click", (event) => {
+  const action = event.target.closest("[data-action]")?.dataset.action;
+  if (!action) return;
+  closeProfileMenu();
+  if (action === "new-chat") createThread(currentIndustry);
+  if (action === "invite") inviteButton.click();
+  if (action === "sign-out") logoutButton.click();
+});
+
+document.addEventListener("click", (event) => {
+  if (
+    !profileMenu.hidden &&
+    !profileMenu.contains(event.target) &&
+    !profileMenuButton.contains(event.target)
+  ) {
+    closeProfileMenu();
+  }
+});
+
 document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     createThread(currentIndustry);
   }
-  if (event.key === "Escape") closeSidebar();
+  if (event.key === "Escape") {
+    closeSidebar();
+    if (!profileMenu.hidden) closeProfileMenu(true);
+  }
 });
 
 attachButton.addEventListener("click", () => attachmentInput.click());
 attachmentInput.addEventListener("change", () =>
   handleFiles(attachmentInput.files),
 );
+
+form.addEventListener("dragover", (event) => {
+  if (!event.dataTransfer?.types.includes("Files")) return;
+  event.preventDefault();
+  form.classList.add("is-dragging");
+});
+
+form.addEventListener("dragleave", (event) => {
+  if (!form.contains(event.relatedTarget)) {
+    form.classList.remove("is-dragging");
+  }
+});
+
+form.addEventListener("drop", (event) => {
+  if (!event.dataTransfer?.files.length) return;
+  event.preventDefault();
+  form.classList.remove("is-dragging");
+  handleFiles(event.dataTransfer.files);
+});
 
 async function sendMessage(
   message,
@@ -754,7 +636,6 @@ async function sendMessage(
   if (!message && !messageAttachments.length) return;
   if (addUserMessage) addMessage(message, "user", threadId, messageAttachments);
   if (threadId !== activeThreadId) return;
-  if (thread.messages.length === 1) starterPrompts.hidden = true;
   thread.pending = true;
   updateComposerState();
   const typingIndicator = addTypingIndicator();

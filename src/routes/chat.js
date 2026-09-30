@@ -1,0 +1,43 @@
+const express = require("express");
+const { validateMessage } = require("../utils/validator");
+const { answerMessage } = require("../services/chat.service");
+
+function createChatRouter(industry) {
+  const router = express.Router();
+  router.post("/chat", async (req, res, next) => {
+    const validation = validateMessage(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+
+    try {
+      const result = await answerMessage({
+        userId: req.user.id,
+        industry,
+        message: req.body.message,
+        attachments: req.body.attachments || [],
+      });
+      return res.json(result);
+    } catch (error) {
+      if (error.message === "Malware detected") {
+        return res
+          .status(422)
+          .json({ error: "An attachment failed the malware scan" });
+      }
+      if (
+        error.message === "Malware scanner unavailable" ||
+        error.message === "Malware scan timed out" ||
+        error.message === "Malware scanner returned an invalid response" ||
+        error.message === "Malware scanner is required before file processing"
+      ) {
+        return res
+          .status(503)
+          .json({ error: "File scanning is temporarily unavailable" });
+      }
+      return next(error);
+    }
+  });
+  return router;
+}
+
+module.exports = { createChatRouter };

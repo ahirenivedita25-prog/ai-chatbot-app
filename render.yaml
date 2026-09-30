@@ -3,7 +3,7 @@ services:
     name: ai-chatbot-startup
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /chat-status
     envVars:
@@ -11,3 +11,26 @@ services:
         value: production
       - key: JWT_SECRET
         generateValue: true
+      - key: DATA_ENCRYPTION_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: moonlit-db
+          property: connectionString
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: CLAMAV_HOST
+        sync: false
+      - key: CLAMAV_PORT
+        value: "3310"
+      - key: MOONLIT_MODEL_VERSION
+        value: moonlit-brain-v1
+      - key: AI_API_KEY
+        sync: false
+
+databases:
+  - name: moonlit-db
+    databaseName: moonlit
+    user: moonlit_app
+    plan: 0.1c-256mb
+    ipAllowList: []

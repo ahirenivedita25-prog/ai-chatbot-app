@@ -1,16 +1,17 @@
 # AI Chatbot Startup
 
-A minimal Express API starter for industry-specific chatbot experiences across schools, clinics, retail, and restaurants.
+A full-stack Moonlit assistant with a React/Tailwind client, Express API, and PostgreSQL-backed authentication and conversation logging.
 
 ## Quick start
 
 ```bash
 npm install
 npm test
+npm run build
 npm start
 ```
 
-The API listens on `http://localhost:3000` by default.
+The app listens on `http://localhost:3000` by default. For frontend development, run `npm run dev:client` in another terminal; Vite proxies `/api` requests to the Express server.
 
 ## Endpoints
 
@@ -20,46 +21,54 @@ The API listens on `http://localhost:3000` by default.
 - `POST /api/retail/chat`
 - `POST /api/restaurant/chat`
 
-Chat endpoints accept JSON such as `{ "message": "What are your opening hours?" }`.
+Chat endpoints accept JSON such as `{ "message": "What are your opening hours?" }` and require a valid short-lived access token. Replies are plain-text strings in the API envelope. Each successful response includes a model version and conversation ID.
+
+- `POST /api/auth/register`, `POST /api/auth/login`
+- `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me`
+- `GET /api/conversations` (owner-scoped)
+- `GET /api/admin/settings`, `GET /api/admin/help`, `GET /api/admin/audit`, `GET /api/admin/conversations` (admin only)
 
 ## Configuration
 
-Copy `config/env.example` to `.env` and set values as needed. Configure `AI_API_KEY` to enable real answers for every service desk. `AI_API_URL` must point to an OpenAI-compatible chat-completions endpoint and `AI_MODEL` selects the provider model ID (for example, a Gemini model ID). `AI_ASSISTANT_NAME` controls the shared assistant identity and defaults to `moonlit`; it is not a separately trained model and must not replace the provider model ID. Without provider credentials, the app returns an explicit configuration fallback. WhatsApp credentials are optional and only needed when a WhatsApp integration is connected; the current WhatsApp sender helper is not yet exposed through a send route or webhook. User accounts are in-memory and browser chat history is stored locally; use durable, access-controlled storage before production.
+Copy `config/env.example` to `.env` for local development. Set `DATABASE_URL` to enable PostgreSQL persistence. Production startup requires `DATABASE_URL`, a `JWT_SECRET` of at least 32 bytes, a base64-encoded 32-byte `DATA_ENCRYPTION_KEY`, and at least one address in `ADMIN_EMAILS`. Configure `AI_API_KEY` for provider-backed answers. `AI_API_URL` must point to an OpenAI-compatible chat-completions endpoint and `AI_MODEL` selects the provider model ID. `MOONLIT_MODEL_VERSION` is restricted to `moonlit-brain-v1` or `moonlit-brain-v2` in responses. `AI_ASSISTANT_NAME` controls the assistant display identity, not the provider model. WhatsApp credentials remain optional and are not exposed through a send route or webhook.
 
 ## Deploy to Render
 
-This repository includes `render.yaml` for a free Render web service.
+This repository includes `render.yaml` for a Render web service and private PostgreSQL database.
 
 1. Push the repository to GitHub.
 2. In Render, choose **New +** and **Blueprint**.
-3. Connect `ahirenivedita25-prog/ai-chatbot-app`.
+3. Connect the repository containing this Blueprint.
 4. Select the branch to deploy and apply the Blueprint.
 5. Open the generated `https://...onrender.com/` URL.
 
-Render uses `npm install`, `npm start`, and `/chat-status` automatically. The Blueprint generates `JWT_SECRET`; do not commit a local `.env` file or paste secrets into source control. The free service may sleep after inactivity.
+The Blueprint builds the React client with `npm ci && npm run build`, starts the Express service with `npm start`, and uses `/chat-status` for health checks. It provisions PostgreSQL and generates the JWT and data-encryption secrets. During initial Blueprint setup, provide `ADMIN_EMAILS`, `AI_API_KEY`, and `CLAMAV_HOST`; configure `CLAMAV_PORT` if it differs from 3310. Render's free web service may sleep after inactivity, and the selected database plan must be available to the workspace.
 
-After the Render service is created, add `AI_API_KEY`, `AI_API_URL`, `AI_MODEL`, and optionally `AI_ASSISTANT_NAME=moonlit` under **Environment**. Keep `AI_API_KEY` secret. For Gemini's OpenAI-compatible endpoint, use `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` and the exact Gemini model ID enabled for your key. The Render service requires the API key even though the assistant is named Moonlit. Add `WHATSAPP_API_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` only when enabling the separate WhatsApp integration.
+For an existing Render Blueprint, values marked `sync: false` may need to be set manually in the service's Environment panel. Keep all credentials out of source control. The Render web service terminates HTTPS; the app rejects non-HTTPS API requests in production.
 
-The chat UI supports up to four PNG/JPEG/WebP images or plain-text/Markdown/CSV/JSON files per message (1 MB each). Images are sent to the configured model for analysis; text-file contents are included as context. Chat history and attachment names are local to the browser, not shared across devices.
+The chat UI supports up to four PNG/JPEG/WebP images or plain-text/Markdown/CSV/JSON files per message (1 MB each). Attachments are passed to ClamAV using its INSTREAM protocol before processing. Production uploads fail closed unless `CLAMAV_HOST` points to a reachable scanner. Deploy and operate a scanner reachable over Render's private network; the Blueprint does not provision a malware-scanning service.
 
 ## User access
 
-Chat routes require a bearer token. The browser at `/` provides registration and sign-in. Set a long random `JWT_SECRET` in `.env` before starting the app:
+Access tokens expire after 15 minutes. A random refresh token is stored only as a SHA-256 hash in PostgreSQL and rotated on refresh; the browser receives it in a `Secure`, `HttpOnly`, `SameSite=Strict` cookie with a seven-day lifetime. Registration never accepts a role from the client. Only addresses configured in `ADMIN_EMAILS` receive the admin role. Admin APIs and chat routes require role-checked bearer tokens. Passwords use bcrypt. Conversation text and replies are stored with AES-256-GCM encryption; intent, model version, timestamp, user ID, and industry are separately indexed metadata. Admin API activity is recorded in the audit table.
 
 ```text
-JWT_SECRET=replace-with-a-long-random-secret
+JWT_SECRET=replace-with-at-least-32-random-bytes
+DATA_ENCRYPTION_KEY=base64-encoded-32-byte-key
 ```
 
-Authentication endpoints are `POST /api/auth/register`, `POST /api/auth/login`, and `GET /api/auth/me`. Passwords are hashed with bcrypt, and tokens expire after two hours. Because users are currently stored in memory, accounts disappear when the server restarts; use a durable database before production.
+Never rotate `DATA_ENCRYPTION_KEY` without a migration plan: existing conversation records require the original key to decrypt. Use managed secret storage and encrypted backups. Administrative audit data contains account identifiers and request metadata, so retain and access it accordingly.
 
 ## Project layout
 
 - `src/routes`: industry API endpoints
 - `src/services`: external integrations and business logic
 - `src/models`: persistence boundaries
+- `client/src`: React workspace and Tailwind styling
+- `src/db.js`: PostgreSQL schema initialization
 - `tests`: Node built-in test runner tests
 - `docs`: architecture, API reference, and roadmap
 
 ## Production notes
 
-Add authentication, authorization, durable persistence, rate limiting, request correlation, provider-specific chatbot logic, and consent/privacy controls before exposing the service publicly.
+Before production traffic, deploy a reachable ClamAV scanner, configure an AI provider, set an admin email, and confirm database backup/retention policies. Rate limiting currently uses per-process memory; use a shared rate-limit store if the service is scaled to multiple instances.

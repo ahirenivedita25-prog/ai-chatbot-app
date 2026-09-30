@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#08c9c6" />
     <link rel="icon" type="image/svg+xml" href="/chatbot-mark.svg" />
-    <title>moonlit | AI support</title>
+    <title>Moonlit | AI support</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -42,7 +42,7 @@
       <aside id="sidebar" class="sidebar" aria-label="Main navigation">
         <a class="brand" href="/" aria-label="Moonlit home">
           <img class="brand-logo" src="/chatbot-mark.svg" alt="" />
-          <span>moonlit</span>
+          <span>Moonlit</span>
         </a>
         <button id="new-chat" class="nav-action primary-action" type="button">
           <span class="icon" aria-hidden="true">+</span><span>New chat</span>
@@ -65,7 +65,28 @@
             <span class="profile-copy"
               ><strong>Moonlit</strong><small>Admin workspace</small></span
             >
-            <span class="profile-menu" aria-hidden="true">···</span>
+            <button
+              id="profile-menu-button"
+              class="profile-menu-button"
+              type="button"
+              aria-label="Open admin workspace menu"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="profile-menu"
+            >
+              <span aria-hidden="true">···</span>
+            </button>
+            <div id="profile-menu" class="profile-menu" role="menu" hidden>
+              <button type="button" role="menuitem" data-action="new-chat">
+                New chat
+              </button>
+              <button type="button" role="menuitem" data-action="invite">
+                Invite
+              </button>
+              <button type="button" role="menuitem" data-action="sign-out">
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -87,15 +108,6 @@
             </p>
           </div>
           <div class="topbar-actions">
-            <label class="industry-picker" for="industry-select">
-              <span>Desk</span>
-              <select id="industry-select">
-                <option value="school">School</option>
-                <option value="clinic">Clinic</option>
-                <option value="retail">Retail</option>
-                <option value="restaurant">Restaurant</option>
-              </select>
-            </label>
             <button id="logout-button" class="logout-button" type="button">
               Sign out
             </button>
@@ -103,15 +115,6 @@
         </header>
 
         <div id="messages" class="messages" aria-live="polite"></div>
-        <section
-          id="starter-prompts"
-          class="starter-prompts"
-          aria-label="Suggested questions"
-        >
-          <p class="prompt-heading">What can I help with?</p>
-          <div id="prompt-list" class="prompt-list"></div>
-        </section>
-
         <div
           id="attachment-tray"
           class="attachment-tray"
@@ -132,7 +135,11 @@
             aria-label="Attach files"
             title="Attach images or text files"
           >
-            ＋
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="m8 12.5 6.7-6.7a3.2 3.2 0 0 1 4.5 4.5l-8.8 8.8a5 5 0 0 1-7.1-7.1l8.5-8.5"
+              />
+            </svg>
           </button>
           <label class="sr-only" for="message-input">Your message</label>
           <textarea
@@ -142,24 +149,29 @@
             maxlength="4000"
             placeholder="Message Moonlit..."
           ></textarea>
-          <button
-            id="voice-input"
-            class="composer-tool voice-button"
-            type="button"
-            aria-label="Start voice input"
-            aria-pressed="false"
-            title="Dictate message"
-          >
-            <span aria-hidden="true">◉</span>
-          </button>
-          <button
-            id="send-button"
-            class="send-button"
-            type="submit"
-            aria-label="Send message"
-          >
-            <span>Send</span><strong>↗</strong>
-          </button>
+          <div class="composer-actions">
+            <button
+              id="voice-input"
+              class="composer-tool voice-button"
+              type="button"
+              aria-label="Start voice input"
+              aria-pressed="false"
+              title="Dictate message"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="9" y="3" width="6" height="12" rx="3" />
+                <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8" />
+              </svg>
+            </button>
+            <button
+              id="send-button"
+              class="send-button"
+              type="submit"
+              aria-label="Send message"
+            >
+              <span>Send</span><strong>↗</strong>
+            </button>
+          </div>
         </form>
         <div class="composer-footer">
           <p
