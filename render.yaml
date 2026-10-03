@@ -59,5 +59,7 @@ services:
         sync: false
       - key: OPENWEATHER_KEY
         sync: false
+      - key: WEATHERAPI_KEY
+        sync: false
       - key: LOCATION_API_URL
         value: https://api.openweathermap.org/geo/1.0/direct

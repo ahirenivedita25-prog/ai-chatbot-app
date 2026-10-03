@@ -26,7 +26,7 @@ function createChatRouter(industry) {
         return res.json(result);
       } catch (error) {
         if (
-          /^Weather API request failed|^Weather API returned an invalid response/i.test(
+          /^Weather API (?:request failed|returned an invalid)/i.test(
             error.message,
           )
         ) {
@@ -86,7 +86,7 @@ function createPlainChatRouter() {
         return res.type("text/plain; charset=utf-8").send(result.reply);
       } catch (error) {
         if (
-          /^Weather API request failed|^Weather API returned an invalid response/i.test(
+          /^Weather API (?:request failed|returned an invalid)/i.test(
             error.message,
           )
         ) {

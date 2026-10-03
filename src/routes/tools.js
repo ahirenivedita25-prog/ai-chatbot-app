@@ -11,7 +11,11 @@ function handleExternalError(error, res, next) {
       .status(503)
       .json({ error: "This external API is not configured" });
   }
-  if (/API request failed|invalid response/i.test(error.message)) {
+  if (
+    /API request failed|invalid (?:response|location|seven-day forecast)/i.test(
+      error.message,
+    )
+  ) {
     return res.status(502).json({
       error: "The external data service could not complete the request",
     });
@@ -32,7 +36,12 @@ weatherRouter.post("/", async (req, res, next) => {
       .status(400)
       .json({ error: "Provide a location and optional boolean forecast" });
   }
-  if (!process.env.OPENWEATHER_KEY && !process.env.WEATHER_API_KEY) {
+  const weatherConfigured = forecast
+    ? process.env.WEATHERAPI_KEY ||
+      process.env.OPENWEATHER_KEY ||
+      process.env.WEATHER_API_KEY
+    : process.env.OPENWEATHER_KEY || process.env.WEATHER_API_KEY;
+  if (!weatherConfigured) {
     return res.status(503).json({ error: "Weather API is not configured" });
   }
   try {
