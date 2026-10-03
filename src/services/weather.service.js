@@ -3,11 +3,12 @@ const WEATHER_FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
 const LOCATION_SEARCH_URL = "https://api.openweathermap.org/geo/1.0/direct";
 
 function extractLocation(message) {
-  const match = message.match(/\b(?:in|for|at)\s+(.+?)(?:[?.!,]|$)/i);
+  const match = message.match(/\b(?:in|for|at|of)\s+(.+?)(?:[?.!,]|$)/i);
   if (!match) return null;
   return (
     match[1]
       .replace(/\b(?:today|tomorrow|now|currently|this week|next week)\b/gi, "")
+      .replace(/\s+city$/i, "")
       .trim() || null
   );
 }

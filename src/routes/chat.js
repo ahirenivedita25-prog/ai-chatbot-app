@@ -25,6 +25,16 @@ function createChatRouter(industry) {
         });
         return res.json(result);
       } catch (error) {
+        if (
+          /^Weather API request failed|^Weather API returned an invalid response/i.test(
+            error.message,
+          )
+        ) {
+          return res.status(502).json({
+            error:
+              "Weather lookup is temporarily unavailable. Check the city name or try again shortly.",
+          });
+        }
         if (error.message === "Malware detected") {
           return res
             .status(422)
@@ -75,6 +85,16 @@ function createPlainChatRouter() {
         // Keep this compatibility endpoint's successful response as plain text.
         return res.type("text/plain; charset=utf-8").send(result.reply);
       } catch (error) {
+        if (
+          /^Weather API request failed|^Weather API returned an invalid response/i.test(
+            error.message,
+          )
+        ) {
+          return res.status(502).json({
+            error:
+              "Weather lookup is temporarily unavailable. Check the city name or try again shortly.",
+          });
+        }
         if (error.message === "Malware detected") {
           return res
             .status(422)

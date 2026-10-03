@@ -90,7 +90,7 @@ test("chatbot service routes weather requests to the weather API", async () => {
   try {
     const reply = await generateReply({
       industry: "school",
-      message: "What's the weather in Paris?",
+      message: "What is the weature of Pune city?",
       transport: async (url) => {
         requestedUrl = new URL(url);
         return {
@@ -105,7 +105,7 @@ test("chatbot service routes weather requests to the weather API", async () => {
       },
     });
 
-    assert.equal(requestedUrl.searchParams.get("q"), "Paris");
+    assert.equal(requestedUrl.searchParams.get("q"), "Pune");
     assert.match(reply, /☀️ Condition: Clear Sky/);
     assert.match(reply, /🌡️ Temperature: 24°C/);
     assert.match(reply, /💧 Humidity: 50%/);

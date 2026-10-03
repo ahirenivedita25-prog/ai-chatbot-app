@@ -8,6 +8,8 @@ const {
 
 test("weather intent recognizes weather, temperature, and forecast", () => {
   assert.equal(classifyIntent("What's the weather in Paris?"), "weather");
+  assert.equal(classifyIntent("What is the weature of Pune city?"), "weather");
+  assert.equal(classifyIntent("What is the wether in Pune?"), "weather");
   assert.equal(classifyIntent("Temperature for Tokyo"), "weather");
   assert.equal(classifyIntent("Forecast at New York tomorrow"), "weather");
   assert.equal(
@@ -18,6 +20,7 @@ test("weather intent recognizes weather, temperature, and forecast", () => {
 
 test("weather location extraction removes forecast date words", () => {
   assert.equal(extractLocation("Weather in New York tomorrow?"), "New York");
+  assert.equal(extractLocation("What is the weature of Pune city?"), "Pune");
   assert.equal(extractLocation("Temperature in Paris"), "Paris");
   assert.equal(extractLocation("weather please"), null);
 });

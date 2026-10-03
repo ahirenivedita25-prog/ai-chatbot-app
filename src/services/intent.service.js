@@ -1,5 +1,8 @@
 const intentRules = [
-  ["weather", /\b(?:weather|temperature|forecast)\b/i],
+  [
+    "weather",
+    /\b(?:weather|weature|wether|weater|wheather|weahter|temperature|forecast)\b/i,
+  ],
   ["billing", /fee|tuition|bill|invoice|payment|refund/i],
   ["appointment", /appointment|book|schedule|visit|availability/i],
   ["order", /order|delivery|shipping|return|product|purchase/i],
