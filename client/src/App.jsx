@@ -19,6 +19,12 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem("moonlit-sidebar-collapsed") === "true",
+  );
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("moonlit-theme") || "light",
+  );
   const refreshInFlight = useRef(null);
 
   const acceptSession = useCallback((session) => {
@@ -76,23 +82,10 @@ export default function App() {
   useEffect(() => {
     if (!user) return undefined;
     let active = true;
-    apiRequest("/api/conversations")
+    apiRequest("/api/conversations/threads")
       .then(parseResponse)
-      .then(({ conversations }) => {
+      .then(({ threads: savedThreads }) => {
         if (!active) return;
-        const savedThreads = conversations.map((item) => ({
-          id: String(item.id),
-          title: item.message || "File attachment",
-          industry: item.industry,
-          messages: [
-            {
-              id: `${item.id}-question`,
-              role: "user",
-              text: item.message || "Review the attached file.",
-            },
-            { id: `${item.id}-answer`, role: "assistant", text: item.reply },
-          ],
-        }));
         setThreads(savedThreads);
         if (savedThreads.length) {
           setActiveId(savedThreads[0].id);
@@ -104,6 +97,30 @@ export default function App() {
       active = false;
     };
   }, [apiRequest, user]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("moonlit-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem("moonlit-sidebar-collapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    function onShortcut(event) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        newChat();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        setSidebarCollapsed((value) => !value);
+      }
+    }
+    window.addEventListener("keydown", onShortcut);
+    return () => window.removeEventListener("keydown", onShortcut);
+  });
 
   async function logout() {
     await fetch("/api/auth/logout", {
@@ -117,10 +134,13 @@ export default function App() {
     setStatus("Signed out.");
   }
 
-  async function sendMessage(message, attachments) {
+  async function sendMessage(message, attachments, action = "") {
     setBusy(true);
     setStatus("");
     const activeThreadId = activeId;
+    const existingThread = threads.find(
+      (thread) => thread.id === activeThreadId,
+    );
     const userText =
       message || `Review ${attachments.map((file) => file.name).join(", ")}.`;
     setMessages((current) => [
@@ -131,14 +151,23 @@ export default function App() {
       const response = await apiRequest("/api/school/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, attachments }),
+        body: JSON.stringify({
+          message,
+          attachments,
+          threadId: activeThreadId,
+          action,
+        }),
       });
       const result = await parseResponse(response);
       const savedThread = {
-        id: String(result.conversationId),
-        title: userText,
+        id: String(result.threadId || activeThreadId),
+        title:
+          existingThread?.label ||
+          (existingThread?.messages?.length ? existingThread.title : userText),
+        label: existingThread?.label || "",
         industry: result.industry,
         messages: [
+          ...(existingThread?.messages || []),
           {
             id: `${result.conversationId}-question`,
             role: "user",
@@ -148,6 +177,7 @@ export default function App() {
             id: `${result.conversationId}-answer`,
             role: "assistant",
             text: result.reply,
+            conversationId: String(result.conversationId),
           },
         ],
       };
@@ -174,10 +204,72 @@ export default function App() {
     setSidebarOpen(false);
   }
 
+  async function rateMessage(message, rating) {
+    try {
+      await parseResponse(
+        await apiRequest(
+          `/api/conversations/${message.conversationId}/feedback`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rating }),
+          },
+        ),
+      );
+      const updateFeedback = (items) =>
+        items.map((item) =>
+          item.id === message.id ? { ...item, feedback: rating } : item,
+        );
+      setMessages(updateFeedback);
+      setThreads((current) =>
+        current.map((thread) => ({
+          ...thread,
+          messages: updateFeedback(thread.messages),
+        })),
+      );
+      setStatus("Feedback saved.");
+    } catch (error) {
+      setStatus(error.message);
+    }
+  }
+
+  async function renameThread(thread) {
+    const label = window.prompt("Name this chat", thread.label || thread.title);
+    if (label === null) return;
+    try {
+      await parseResponse(
+        await apiRequest(
+          `/api/conversations/threads/${encodeURIComponent(thread.id)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ label }),
+          },
+        ),
+      );
+      setThreads((current) =>
+        current.map((item) =>
+          item.id === thread.id
+            ? {
+                ...item,
+                label: label.trim(),
+                title:
+                  label.trim() || item.messages[0]?.text || "New conversation",
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setStatus(error.message);
+    }
+  }
+
   if (!user) return <AuthView onAuthenticated={acceptSession} />;
 
   return (
-    <main className="app-shell min-h-dvh bg-moon-paper text-moon-ink">
+    <main
+      className={`app-shell min-h-dvh bg-moon-paper text-moon-ink ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
+    >
       <Sidebar
         user={user}
         threads={threads}
@@ -192,6 +284,9 @@ export default function App() {
         }}
         onLogout={logout}
         apiRequest={apiRequest}
+        onRename={renameThread}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -222,9 +317,25 @@ export default function App() {
               Logout
             </button>
           )}
+          <button
+            className="icon-control theme-toggle"
+            type="button"
+            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            title="Toggle theme"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          >
+            {theme === "light" ? "◐" : "☼"}
+          </button>
         </header>
-        <MessageList messages={messages} busy={busy} />
-        <Composer onSend={sendMessage} busy={busy} />
+        <MessageList messages={messages} busy={busy} onFeedback={rateMessage} />
+        {user.role === "viewer" ? (
+          <p className="viewer-notice" role="status">
+            Viewer access · you can read and rate responses, but cannot send
+            messages.
+          </p>
+        ) : (
+          <Composer onSend={sendMessage} busy={busy} apiRequest={apiRequest} />
+        )}
         <div role="status" className="composer-caption">
           {status}
         </div>

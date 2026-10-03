@@ -3,6 +3,7 @@ const auditModel = require("../models/audit.model");
 const conversationModel = require("../models/conversation.model");
 const failedQueryModel = require("../models/failed-query.model");
 const feedbackModel = require("../models/feedback.model");
+const invitationModel = require("../models/invitation.model");
 const { requireAdmin } = require("../middleware/auth");
 const { modelVersion } = require("../services/chat.service");
 
@@ -30,6 +31,144 @@ router.get("/settings", (_req, res) => {
     });
   } catch {
     return res.status(500).json({ error: "Settings are unavailable" });
+  }
+});
+
+router.get("/integrations", (_req, res) => {
+  return res.json({
+    integrations: [
+      {
+        name: "Jira",
+        configured: Boolean(
+          process.env.JIRA_BASE_URL &&
+          process.env.JIRA_EMAIL &&
+          process.env.JIRA_API_TOKEN,
+        ),
+        setup: "Search Jira issues from the admin workspace",
+      },
+      {
+        name: "Confluence",
+        configured: Boolean(
+          process.env.CONFLUENCE_BASE_URL &&
+          process.env.CONFLUENCE_EMAIL &&
+          process.env.CONFLUENCE_API_TOKEN,
+        ),
+        setup: "Search Confluence pages from the admin workspace",
+      },
+      {
+        name: "Slack",
+        configured: Boolean(process.env.SLACK_BOT_TOKEN),
+        setup: "Search Slack messages from the admin workspace",
+      },
+      {
+        name: "Google Drive",
+        configured: Boolean(
+          process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+        ),
+        setup: "OAuth file import is available in the chat composer",
+      },
+      {
+        name: "OneDrive",
+        configured: Boolean(
+          process.env.MICROSOFT_CLIENT_ID &&
+          process.env.MICROSOFT_CLIENT_SECRET,
+        ),
+        setup: "OAuth file import is available in the chat composer",
+      },
+    ],
+  });
+});
+
+router.get("/invites", async (_req, res, next) => {
+  try {
+    return res.json({
+      invitations: await invitationModel.list({ limit: 100 }),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/invites", async (req, res, next) => {
+  const email =
+    typeof req.body?.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+  const role = req.body?.role;
+  const expiresHours = Number(req.body?.expiresHours || 72);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    return res.status(400).json({ error: "Enter a valid email address" });
+  }
+  if (!["admin", "editor", "viewer"].includes(role)) {
+    return res
+      .status(400)
+      .json({ error: "Role must be admin, editor, or viewer" });
+  }
+  if (
+    !Number.isFinite(expiresHours) ||
+    expiresHours < 1 ||
+    expiresHours > 720
+  ) {
+    return res
+      .status(400)
+      .json({ error: "Expiry must be between 1 and 720 hours" });
+  }
+  try {
+    if (await require("../models/user.model").findByEmail(email)) {
+      return res
+        .status(409)
+        .json({ error: "That user already has an account" });
+    }
+    const expiresAt = new Date(Date.now() + expiresHours * 60 * 60 * 1000);
+    const { token, invitation } = await invitationModel.create({
+      email,
+      role,
+      invitedBy: req.user.id,
+      expiresAt,
+    });
+    const baseUrl = (
+      process.env.APP_BASE_URL || `${req.protocol}://${req.get("host")}`
+    ).replace(/\/$/, "");
+    const inviteUrl = `${baseUrl}/#invite=${encodeURIComponent(token)}`;
+    let emailSent = false;
+    if (process.env.RESEND_API_KEY && process.env.INVITE_FROM_EMAIL) {
+      const emailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: process.env.INVITE_FROM_EMAIL,
+          to: [email],
+          subject: "You are invited to Moonlit",
+          text: `You have been invited to Moonlit as ${role}. Accept before ${expiresAt.toISOString()}: ${inviteUrl}`,
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!emailResponse.ok) {
+        return res.status(502).json({
+          error: "Invitation was created, but email delivery failed",
+          invitation,
+          inviteUrl,
+        });
+      }
+      emailSent = true;
+    }
+    return res.status(201).json({ invitation, inviteUrl, emailSent });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.delete("/invites/:id", async (req, res, next) => {
+  try {
+    const revoked = await invitationModel.revoke(req.params.id);
+    return revoked
+      ? res.status(204).end()
+      : res.status(404).json({ error: "Invitation not found" });
+  } catch (error) {
+    return next(error);
   }
 });
 

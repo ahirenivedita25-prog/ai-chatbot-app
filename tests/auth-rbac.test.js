@@ -2,7 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 process.env.JWT_SECRET = "test-secret-long-enough-for-auth-rbac-suite";
-process.env.ADMIN_EMAILS = "owner@test.local,adminmenu@test.local";
+process.env.ADMIN_EMAILS =
+  "owner@test.local,adminmenu@test.local,invite-owner@test.local";
 const app = require("../src/app");
 const auditModel = require("../src/models/audit.model");
 
@@ -34,7 +35,7 @@ test("registration assigns admin only to configured addresses", async () => {
     assert.equal(admin.response.status, 201);
     assert.equal(admin.body.user.role, "admin");
     assert.equal(member.response.status, 201);
-    assert.equal(member.body.user.role, "user");
+    assert.equal(member.body.user.role, "viewer");
     assert.match(admin.response.headers.get("set-cookie"), /HttpOnly/i);
   });
 });
@@ -103,5 +104,71 @@ test("protected chat routes reject requests without a valid access token", async
       body: JSON.stringify({ message: "How do I pay tuition?" }),
     });
     assert.equal(response.status, 401);
+  });
+});
+
+test("admin invitations grant the selected role and are single-use", async () => {
+  await withServer(async (url) => {
+    const admin = await register(url, "invite-owner@test.local");
+    const inviteResponse = await fetch(`${url}/api/admin/invites`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${admin.body.token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "editor-invite@test.local",
+        role: "editor",
+        expiresHours: 24,
+      }),
+    });
+    const invite = await inviteResponse.json();
+    const token = new URLSearchParams(
+      new URL(invite.inviteUrl).hash.slice(1),
+    ).get("invite");
+
+    assert.equal(inviteResponse.status, 201);
+    assert.equal(invite.emailSent, false);
+    assert.ok(token);
+    assert.equal(invite.invitation.role, "editor");
+
+    const accepted = await fetch(`${url}/api/auth/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "editor-invite@test.local",
+        password: "valid-password-123",
+        inviteToken: token,
+      }),
+    });
+    const acceptedBody = await accepted.json();
+    assert.equal(accepted.status, 201);
+    assert.equal(acceptedBody.user.role, "editor");
+
+    const replay = await fetch(`${url}/api/auth/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "another-editor@test.local",
+        password: "valid-password-123",
+        inviteToken: token,
+      }),
+    });
+    assert.equal(replay.status, 400);
+  });
+});
+
+test("viewers cannot post new chat messages", async () => {
+  await withServer(async (url) => {
+    const viewer = await register(url, "viewer@test.local");
+    const response = await fetch(`${url}/api/school/chat`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${viewer.body.token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ message: "Hello" }),
+    });
+    assert.equal(response.status, 403);
   });
 });

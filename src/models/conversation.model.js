@@ -11,14 +11,19 @@ async function create({
   modelVersion,
   message,
   reply,
+  threadId,
+  label,
 }) {
   const encrypted = encryptJson({ message, reply });
+  const thread = threadId || crypto.randomUUID();
   const record = {
     id: crypto.randomUUID(),
     userId,
     industry,
     intent,
     modelVersion,
+    threadId: thread,
+    label: label || null,
     ...encrypted,
     createdAt: new Date().toISOString(),
   };
@@ -26,9 +31,9 @@ async function create({
   if (pool) {
     const result = await pool.query(
       `INSERT INTO conversations
-        (user_id, industry, intent, model_version, ciphertext, iv, auth_tag)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, created_at`,
+        (user_id, industry, intent, model_version, ciphertext, iv, auth_tag, thread_id, label)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, created_at, thread_id`,
       [
         userId,
         industry,
@@ -37,14 +42,21 @@ async function create({
         encrypted.ciphertext,
         encrypted.iv,
         encrypted.authTag,
+        thread,
+        label || null,
       ],
     );
     record.id = result.rows[0].id;
     record.createdAt = result.rows[0].created_at.toISOString();
+    record.threadId = result.rows[0].thread_id;
   } else {
     records.push(record);
   }
-  return { id: record.id, createdAt: record.createdAt };
+  return {
+    id: record.id,
+    threadId: record.threadId,
+    createdAt: record.createdAt,
+  };
 }
 
 async function existsForUser(id, userId) {
@@ -65,7 +77,7 @@ async function list({ limit = 100 } = {}) {
   if (pool) {
     const result = await pool.query(
       `SELECT id, user_id, industry, intent, model_version, ciphertext, iv,
-              auth_tag, created_at
+              auth_tag, created_at, thread_id, label
        FROM conversations ORDER BY created_at DESC LIMIT $1`,
       [limit],
     );
@@ -75,6 +87,8 @@ async function list({ limit = 100 } = {}) {
       industry: row.industry,
       intent: row.intent,
       modelVersion: row.model_version,
+      threadId: row.thread_id,
+      label: row.label,
       createdAt: row.created_at,
       ...decryptJson({
         ciphertext: row.ciphertext,
@@ -93,6 +107,8 @@ async function list({ limit = 100 } = {}) {
       industry: record.industry,
       intent: record.intent,
       modelVersion: record.modelVersion,
+      threadId: record.threadId || String(record.id),
+      label: record.label || null,
       createdAt: record.createdAt,
       ...decryptJson(record),
     }));
@@ -102,7 +118,7 @@ async function listForUser(userId, { limit = 100 } = {}) {
   if (pool) {
     const result = await pool.query(
       `SELECT id, user_id, industry, intent, model_version, ciphertext, iv,
-              auth_tag, created_at
+              auth_tag, created_at, thread_id, label
        FROM conversations WHERE user_id = $1
        ORDER BY created_at DESC LIMIT $2`,
       [userId, limit],
@@ -113,6 +129,8 @@ async function listForUser(userId, { limit = 100 } = {}) {
       industry: row.industry,
       intent: row.intent,
       modelVersion: row.model_version,
+      threadId: row.thread_id,
+      label: row.label,
       createdAt: row.created_at,
       ...decryptJson({
         ciphertext: row.ciphertext,
@@ -132,9 +150,86 @@ async function listForUser(userId, { limit = 100 } = {}) {
       industry: record.industry,
       intent: record.intent,
       modelVersion: record.modelVersion,
+      threadId: record.threadId || String(record.id),
+      label: record.label || null,
       createdAt: record.createdAt,
       ...decryptJson(record),
     }));
 }
 
-module.exports = { create, list, listForUser, existsForUser };
+async function listThreadsForUser(
+  userId,
+  { limit = 500, search = "", industry = "" } = {},
+) {
+  const exchanges = await listForUser(userId, { limit });
+  const byThread = new Map();
+  for (const exchange of [...exchanges].reverse()) {
+    if (industry && exchange.industry !== industry) continue;
+    const threadId = String(exchange.threadId || exchange.id);
+    const thread = byThread.get(threadId) || {
+      id: threadId,
+      label: exchange.label || null,
+      industry: exchange.industry,
+      createdAt: exchange.createdAt,
+      messages: [],
+    };
+    thread.messages.push(
+      { id: `${exchange.id}-question`, role: "user", text: exchange.message },
+      {
+        id: `${exchange.id}-answer`,
+        role: "assistant",
+        text: exchange.reply,
+        conversationId: String(exchange.id),
+      },
+    );
+    if (new Date(exchange.createdAt) < new Date(thread.createdAt))
+      thread.createdAt = exchange.createdAt;
+    byThread.set(threadId, thread);
+  }
+  const normalizedSearch = search.trim().toLowerCase();
+  return [...byThread.values()]
+    .map((thread) => ({
+      ...thread,
+      title:
+        thread.label ||
+        thread.messages.find((message) => message.role === "user")?.text ||
+        "New conversation",
+    }))
+    .filter(
+      (thread) =>
+        !normalizedSearch ||
+        `${thread.title} ${thread.messages.map((message) => message.text).join(" ")}`
+          .toLowerCase()
+          .includes(normalizedSearch),
+    )
+    .sort(
+      (first, second) => new Date(second.createdAt) - new Date(first.createdAt),
+    );
+}
+
+async function setThreadLabel(userId, threadId, label) {
+  if (pool) {
+    const result = await pool.query(
+      `UPDATE conversations SET label = $3
+       WHERE user_id = $1 AND thread_id = $2 RETURNING thread_id`,
+      [userId, threadId, label],
+    );
+    return result.rowCount > 0;
+  }
+  const matches = records.filter(
+    (record) =>
+      record.userId === userId &&
+      String(record.threadId || record.id) === String(threadId),
+  );
+  for (const record of matches) record.label = label;
+  return matches.length > 0;
+}
+
+module.exports = {
+  create,
+  list,
+  listForUser,
+  listThreadsForUser,
+  setThreadLabel,
+  existsForUser,
+};

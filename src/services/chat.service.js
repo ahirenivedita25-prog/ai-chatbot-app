@@ -31,7 +31,14 @@ function sanitizeAttachments(attachments) {
   }));
 }
 
-async function answerMessage({ userId, industry, message, attachments }) {
+async function answerMessage({
+  userId,
+  industry,
+  message,
+  attachments,
+  threadId,
+  label,
+}) {
   const safeMessage = sanitizeMessage(message);
   const safeAttachments = sanitizeAttachments(attachments);
   await scanAttachments(safeAttachments);
@@ -70,6 +77,8 @@ async function answerMessage({ userId, industry, message, attachments }) {
     modelVersion: version,
     message: safeMessage,
     reply,
+    threadId,
+    label,
   });
 
   return {
@@ -77,6 +86,7 @@ async function answerMessage({ userId, industry, message, attachments }) {
     reply,
     modelVersion: version,
     conversationId: conversation.id,
+    threadId: conversation.threadId,
   };
 }
 

@@ -32,8 +32,18 @@ function requireRole(role) {
   };
 }
 
+function requireAnyRole(...roles) {
+  return (req, res, next) => {
+    if (!roles.includes(req.user?.role)) {
+      return res.status(403).json({ error: "Insufficient permissions" });
+    }
+    return next();
+  };
+}
+
 module.exports = {
   requireAuth,
   requireRole,
+  requireAnyRole,
   requireAdmin: requireRole("admin"),
 };

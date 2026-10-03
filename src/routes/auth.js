@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("node:crypto");
 const userModel = require("../models/user.model");
 const sessionModel = require("../models/session.model");
+const invitationModel = require("../models/invitation.model");
 const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
@@ -98,6 +99,7 @@ router.post(
         ? req.body.email.trim().toLowerCase()
         : "";
     const password = req.body?.password;
+    const inviteToken = req.body?.inviteToken;
     if (
       !emailPattern.test(email) ||
       typeof password !== "string" ||
@@ -111,16 +113,47 @@ router.post(
     if (await userModel.findByEmail(email))
       return res.status(409).json({ error: "Unable to create account" });
 
+    let invitation = null;
+    if (inviteToken) {
+      invitation = await invitationModel.findValid(inviteToken, email);
+      if (!invitation) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "Invitation is invalid, expired, or belongs to another email",
+          });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await userModel.create({
       email,
       passwordHash,
-      role: isAdminEmail(email) ? "admin" : "user",
+      role: invitation?.role || (isAdminEmail(email) ? "admin" : "viewer"),
     });
+    if (invitation && !(await invitationModel.accept(invitation.id))) {
+      return res
+        .status(409)
+        .json({ error: "Invitation has already been used" });
+    }
     await createRefreshSession(user, res);
     return res
       .status(201)
       .json({ token: issueAccessToken(user), user: publicUser(user) });
+  }),
+);
+
+router.get(
+  "/invitations/:token",
+  asyncRoute(async (req, res) => {
+    const invitation = await invitationModel.preview(req.params.token);
+    if (!invitation) {
+      return res
+        .status(404)
+        .json({ error: "Invitation is invalid or expired" });
+    }
+    return res.json({ invitation });
   }),
 );
 

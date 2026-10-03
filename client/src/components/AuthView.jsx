@@ -1,9 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function AuthView({ onAuthenticated }) {
-  const [registering, setRegistering] = useState(false);
+  const inviteToken =
+    new URLSearchParams(location.hash.slice(1)).get("invite") ||
+    new URLSearchParams(location.search).get("invite") ||
+    "";
+  const [registering, setRegistering] = useState(Boolean(inviteToken));
+  const [invitation, setInvitation] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    fetch(`/api/auth/invitations/${encodeURIComponent(inviteToken)}`)
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok)
+          throw new Error(result.error || "Invitation is invalid");
+        setInvitation(result.invitation);
+      })
+      .catch((requestError) => setError(requestError.message));
+  }, [inviteToken]);
 
   async function submit(event) {
     event.preventDefault();
@@ -20,6 +37,7 @@ export default function AuthView({ onAuthenticated }) {
           body: JSON.stringify({
             email: form.get("email"),
             password: form.get("password"),
+            ...(registering && inviteToken ? { inviteToken } : {}),
           }),
         },
       );
@@ -39,7 +57,18 @@ export default function AuthView({ onAuthenticated }) {
       <section className="auth-panel min-w-0 bg-white">
         <img src="/chatbot-mark.svg" className="brand-mark" alt="" />
         <p className="eyebrow">Private assistant workspace</p>
-        <h1>{registering ? "Create your account" : "Sign in to Moonlit"}</h1>
+        <h1>
+          {registering
+            ? inviteToken
+              ? "Accept your invitation"
+              : "Create your account"
+            : "Sign in to Moonlit"}
+        </h1>
+        {invitation && (
+          <p className="muted">
+            Invited as {invitation.role}: {invitation.email}
+          </p>
+        )}
         <p className="muted">Your conversations are private to your account.</p>
         <form onSubmit={submit} className="auth-form">
           <label htmlFor="email">Email</label>
@@ -48,6 +77,8 @@ export default function AuthView({ onAuthenticated }) {
             name="email"
             type="email"
             autoComplete="email"
+            defaultValue={invitation?.email || ""}
+            readOnly={Boolean(invitation)}
             required
             maxLength={254}
           />

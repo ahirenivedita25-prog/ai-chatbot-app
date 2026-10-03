@@ -3,7 +3,8 @@ const { pool } = require("../db");
 const users = new Map();
 
 function create(user) {
-  const role = user.role === "admin" ? "admin" : "user";
+  const allowedRoles = new Set(["admin", "editor", "viewer", "user"]);
+  const role = allowedRoles.has(user.role) ? user.role : "user";
   const record = {
     id: user.id || crypto.randomUUID(),
     ...user,

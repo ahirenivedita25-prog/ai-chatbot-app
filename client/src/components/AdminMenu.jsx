@@ -5,6 +5,13 @@ export default function AdminMenu({ onLogout, apiRequest }) {
   const [panel, setPanel] = useState("");
   const [settings, setSettings] = useState(null);
   const [help, setHelp] = useState(null);
+  const [integrations, setIntegrations] = useState(null);
+  const [integrationProvider, setIntegrationProvider] = useState("jira");
+  const [integrationQuery, setIntegrationQuery] = useState("");
+  const [integrationResults, setIntegrationResults] = useState([]);
+  const [integrationBusy, setIntegrationBusy] = useState(false);
+  const [integrationError, setIntegrationError] = useState("");
+  const [audit, setAudit] = useState(null);
   const root = useRef(null);
 
   useEffect(() => {
@@ -29,7 +36,35 @@ export default function AdminMenu({ onLogout, apiRequest }) {
     const response = await apiRequest(`/api/admin/${name}`);
     if (response.ok) {
       const data = await response.json();
-      name === "settings" ? setSettings(data) : setHelp(data);
+      if (name === "settings") setSettings(data);
+      else if (name === "help") setHelp(data);
+      else if (name === "integrations") setIntegrations(data.integrations);
+      else if (name === "audit") setAudit(data.events);
+    }
+  }
+
+  async function searchIntegration(event) {
+    event.preventDefault();
+    setIntegrationBusy(true);
+    setIntegrationError("");
+    setIntegrationResults([]);
+    try {
+      const response = await apiRequest(
+        `/api/integrations/${integrationProvider}/search`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: integrationQuery }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || "Integration search failed");
+      setIntegrationResults(result.results);
+    } catch (error) {
+      setIntegrationError(error.message);
+    } finally {
+      setIntegrationBusy(false);
     }
   }
 
@@ -49,6 +84,15 @@ export default function AdminMenu({ onLogout, apiRequest }) {
         <div className="menu-popover" role="menu">
           <button role="menuitem" onClick={() => void showPanel("settings")}>
             Settings
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => void showPanel("integrations")}
+          >
+            Integrations
+          </button>
+          <button role="menuitem" onClick={() => void showPanel("audit")}>
+            Activity log
           </button>
           <button role="menuitem" onClick={() => void showPanel("help")}>
             Help
@@ -73,7 +117,14 @@ export default function AdminMenu({ onLogout, apiRequest }) {
           >
             <div className="dialog-header">
               <h2 id="dialog-title">
-                {panel === "settings" ? "Workspace settings" : "Moonlit help"}
+                {
+                  {
+                    settings: "Workspace settings",
+                    help: "Moonlit help",
+                    integrations: "Integrations",
+                    audit: "Activity log",
+                  }[panel]
+                }
               </h2>
               <button
                 className="icon-control"
@@ -98,6 +149,101 @@ export default function AdminMenu({ onLogout, apiRequest }) {
               ) : (
                 <p>Loading settings…</p>
               )
+            ) : panel === "integrations" ? (
+              integrations ? (
+                <>
+                  <ul className="integration-list">
+                    {integrations.map((integration) => (
+                      <li key={integration.name}>
+                        <strong>{integration.name}</strong>
+                        <span
+                          className={
+                            integration.configured
+                              ? "integration-ready"
+                              : "integration-pending"
+                          }
+                        >
+                          {integration.configured
+                            ? "Credentials configured"
+                            : "Needs credentials"}
+                        </span>
+                        <small>{integration.setup}</small>
+                      </li>
+                    ))}
+                  </ul>
+                  <form
+                    className="integration-search-form"
+                    onSubmit={searchIntegration}
+                  >
+                    <label htmlFor="integration-provider">
+                      Search connected workspace
+                    </label>
+                    <div>
+                      <select
+                        id="integration-provider"
+                        value={integrationProvider}
+                        onChange={(event) =>
+                          setIntegrationProvider(event.target.value)
+                        }
+                      >
+                        <option value="jira">Jira</option>
+                        <option value="confluence">Confluence</option>
+                        <option value="slack">Slack</option>
+                      </select>
+                      <input
+                        aria-label="Search integrations"
+                        value={integrationQuery}
+                        onChange={(event) =>
+                          setIntegrationQuery(event.target.value)
+                        }
+                        placeholder="Search issues, pages, or messages"
+                        maxLength={200}
+                        required
+                      />
+                      <button type="submit" disabled={integrationBusy}>
+                        {integrationBusy ? "Searching…" : "Search"}
+                      </button>
+                    </div>
+                  </form>
+                  {integrationError && (
+                    <p className="error-text" role="alert">
+                      {integrationError}
+                    </p>
+                  )}
+                  <ul className="integration-results" aria-live="polite">
+                    {integrationResults.map((result) => (
+                      <li key={`${integrationProvider}-${result.id}`}>
+                        {result.url ? (
+                          <a href={result.url} target="_blank" rel="noreferrer">
+                            {result.title}
+                          </a>
+                        ) : (
+                          <strong>{result.title}</strong>
+                        )}
+                        {result.excerpt && <p>{result.excerpt}</p>}
+                        {result.updatedAt && (
+                          <small>
+                            {new Date(result.updatedAt).toLocaleString()}
+                          </small>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p>Loading integrations…</p>
+              )
+            ) : panel === "audit" ? (
+              <ul className="audit-list">
+                {(audit || []).map((event, index) => (
+                  <li key={`${event.createdAt}-${index}`}>
+                    <strong>{event.action}</strong>
+                    <span>{new Date(event.createdAt).toLocaleString()}</span>
+                    <small>{event.userId}</small>
+                  </li>
+                ))}
+                {!audit?.length && <li>No recent activity.</li>}
+              </ul>
             ) : help ? (
               <ul>
                 {help.topics.map((topic) => (

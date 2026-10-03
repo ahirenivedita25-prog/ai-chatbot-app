@@ -3,6 +3,7 @@ const express = require("express");
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const conversationRoutes = require("./routes/conversations");
+const integrationRoutes = require("./routes/integrations");
 const { createChatRouter, createPlainChatRouter } = require("./routes/chat");
 const {
   weatherRouter,
@@ -10,6 +11,7 @@ const {
   compareRouter,
 } = require("./routes/tools");
 const { requireAuth } = require("./middleware/auth");
+const { recordUserActivity } = require("./middleware/activity-audit");
 const { initializeDatabase } = require("./db");
 const path = require("node:path");
 const helmet = require("helmet");
@@ -84,20 +86,70 @@ const userLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Chat request limit reached" },
 });
-app.use("/api/school", requireAuth, userLimiter, createChatRouter("school"));
-app.use("/api/clinic", requireAuth, userLimiter, createChatRouter("clinic"));
-app.use("/api/retail", requireAuth, userLimiter, createChatRouter("retail"));
+app.use(
+  "/api/school",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  createChatRouter("school"),
+);
+app.use(
+  "/api/clinic",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  createChatRouter("clinic"),
+);
+app.use(
+  "/api/retail",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  createChatRouter("retail"),
+);
 app.use(
   "/api/restaurant",
   requireAuth,
   userLimiter,
+  recordUserActivity,
   createChatRouter("restaurant"),
 );
-app.use("/chat", requireAuth, userLimiter, createPlainChatRouter());
-app.use("/weather", requireAuth, userLimiter, weatherRouter);
-app.use("/location", requireAuth, userLimiter, locationRouter);
-app.use("/compare", requireAuth, userLimiter, compareRouter);
-app.use("/api/conversations", requireAuth, userLimiter, conversationRoutes);
+app.use(
+  "/chat",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  createPlainChatRouter(),
+);
+app.use(
+  "/weather",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  weatherRouter,
+);
+app.use(
+  "/location",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  locationRouter,
+);
+app.use(
+  "/compare",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  compareRouter,
+);
+app.use(
+  "/api/conversations",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  conversationRoutes,
+);
+app.use("/api/integrations", integrationRoutes);
 app.use("/api/admin", requireAuth, userLimiter, adminRoutes);
 
 app.get("*", (req, res, next) => {

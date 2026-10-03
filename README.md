@@ -35,6 +35,19 @@ Chat endpoints accept JSON such as `{ "message": "What are your opening hours?" 
 
 Copy `config/env.example` to `.env` for local development. Set `DATABASE_URL` to enable PostgreSQL persistence. Production startup requires `DATABASE_URL`, a `JWT_SECRET` of at least 32 bytes, a base64-encoded 32-byte `DATA_ENCRYPTION_KEY`, and at least one address in `ADMIN_EMAILS`. Configure `AI_API_KEY` for provider-backed answers. `AI_API_URL` must point to an OpenAI-compatible chat-completions endpoint and `AI_MODEL` selects the provider model ID. `MOONLIT_MODEL_VERSION` is the app-facing version label and accepts `moonlit-brain-v1`, `moonlit-brain-v2`, and later numeric versions. `AI_ASSISTANT_NAME` controls the assistant display identity, not the provider model. Set `OPENWEATHER_KEY` (or the compatible `WEATHER_API_KEY` alias) to enable `/weather`, `/location`, and weather chat lookups. Endpoint URLs can be overridden with `WEATHER_API_URL`, `WEATHER_FORECAST_API_URL`, and `LOCATION_API_URL`. WhatsApp credentials remain optional and are not exposed through a send route or webhook.
 
+### Integrations
+
+Jira, Confluence, and Slack searches use server-side credentials. Set `JIRA_BASE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN`; `CONFLUENCE_BASE_URL`, `CONFLUENCE_EMAIL`, and `CONFLUENCE_API_TOKEN`; and a Slack bot token with the `search:read` scope. Admins can search those sources from **Workspace options → Integrations**. Do not expose these credentials to the browser.
+
+Google Drive and OneDrive imports use per-user delegated OAuth. Register these callback URLs with the provider applications (replace the host for local development):
+
+```text
+https://ai-chatbot-startup-qet3.onrender.com/api/integrations/google/callback
+https://ai-chatbot-startup-qet3.onrender.com/api/integrations/microsoft/callback
+```
+
+Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` for a Google OAuth web application with the Drive read-only scope enabled. Set `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET` for a Microsoft Entra app registration with delegated `Files.Read` and `User.Read` permissions and `offline_access`. Tokens are encrypted with `DATA_ENCRYPTION_KEY` and stored per user. Imported files are limited to text, Markdown, CSV, or JSON and 1 MB; existing malware scanning still applies before chat processing. The OAuth callback host must match `APP_BASE_URL` exactly.
+
 ## Deploy to Render
 
 This repository includes `render.yaml` for a Render web service. Configure `DATABASE_URL` with the external PostgreSQL provider connection string.

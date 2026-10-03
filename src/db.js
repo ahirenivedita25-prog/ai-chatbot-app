@@ -17,9 +17,13 @@ async function initializeDatabase() {
       id UUID PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+      role TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('user', 'admin', 'editor', 'viewer')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE users ALTER COLUMN role SET DEFAULT 'viewer';
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+    ALTER TABLE users ADD CONSTRAINT users_role_check
+      CHECK (role IN ('user', 'admin', 'editor', 'viewer'));
     CREATE TABLE IF NOT EXISTS refresh_sessions (
       token_hash TEXT PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -37,6 +41,12 @@ async function initializeDatabase() {
       auth_tag TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE conversations ADD COLUMN IF NOT EXISTS thread_id UUID;
+    ALTER TABLE conversations ADD COLUMN IF NOT EXISTS label TEXT;
+    UPDATE conversations SET thread_id = gen_random_uuid() WHERE thread_id IS NULL;
+    ALTER TABLE conversations ALTER COLUMN thread_id SET NOT NULL;
+    CREATE INDEX IF NOT EXISTS conversations_thread_created_idx
+      ON conversations(thread_id, created_at ASC);
     CREATE INDEX IF NOT EXISTS conversations_user_created_idx
       ON conversations(user_id, created_at DESC);
     CREATE TABLE IF NOT EXISTS admin_audit (
@@ -49,6 +59,26 @@ async function initializeDatabase() {
     );
     CREATE INDEX IF NOT EXISTS admin_audit_created_idx
       ON admin_audit(created_at DESC);
+    CREATE TABLE IF NOT EXISTS invitations (
+      id BIGSERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('admin', 'editor', 'viewer')),
+      token_hash TEXT NOT NULL UNIQUE,
+      invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      accepted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS invitations_email_idx ON invitations(email);
+    CREATE TABLE IF NOT EXISTS user_integrations (
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL CHECK (provider IN ('google', 'microsoft')),
+      ciphertext TEXT NOT NULL,
+      iv TEXT NOT NULL,
+      auth_tag TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, provider)
+    );
     CREATE TABLE IF NOT EXISTS failed_queries (
       id BIGSERIAL PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

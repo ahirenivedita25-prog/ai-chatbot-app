@@ -218,6 +218,15 @@ test("feedback is owner-scoped and visible to an admin for review", async () => 
     assert.equal(response.status, 201);
     assert.equal((await response.json()).feedback.rating, "not_helpful");
 
+    const threadsResponse = await fetch(`${url}/api/conversations/threads`, {
+      headers: { Authorization: `Bearer ${createToken(member)}` },
+    });
+    const threadsBody = await threadsResponse.json();
+    const savedAnswer = threadsBody.threads
+      .flatMap((thread) => thread.messages)
+      .find((message) => message.conversationId === String(conversation.id));
+    assert.equal(savedAnswer.feedback, "not_helpful");
+
     const adminResponse = await fetch(`${url}/api/admin/feedback`, {
       headers: { Authorization: `Bearer ${createToken(admin)}` },
     });

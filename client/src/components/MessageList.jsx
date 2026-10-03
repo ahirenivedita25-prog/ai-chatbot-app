@@ -1,4 +1,4 @@
-export default function MessageList({ messages, busy }) {
+export default function MessageList({ messages, busy, onFeedback }) {
   return (
     <div className="messages" aria-live="polite">
       {!messages.length && (
@@ -21,6 +21,30 @@ export default function MessageList({ messages, busy }) {
             alt=""
           />
           <div className="bubble">{message.text}</div>
+          {message.role === "assistant" &&
+            message.conversationId &&
+            onFeedback && (
+              <div className="message-feedback" aria-label="Rate this response">
+                <button
+                  type="button"
+                  aria-label="Helpful response"
+                  aria-pressed={message.feedback === "helpful"}
+                  title="Helpful"
+                  onClick={() => onFeedback(message, "helpful")}
+                >
+                  👍
+                </button>
+                <button
+                  type="button"
+                  aria-label="Not helpful response"
+                  aria-pressed={message.feedback === "not_helpful"}
+                  title="Not helpful"
+                  onClick={() => onFeedback(message, "not_helpful")}
+                >
+                  👎
+                </button>
+              </div>
+            )}
         </article>
       ))}
       {busy && (

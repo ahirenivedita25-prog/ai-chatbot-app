@@ -113,3 +113,51 @@ test("users can retrieve only their own conversation records", async () => {
   assert.equal(firstRecords.length, 1);
   assert.equal(secondRecords.length, 0);
 });
+
+test("users can group, search, and label exchanges as persistent threads", async () => {
+  const owner = userModel.create({
+    email: "threads@test.local",
+    passwordHash: "hash",
+  });
+  const other = userModel.create({
+    email: "other-threads@test.local",
+    passwordHash: "hash",
+  });
+  const threadId = require("node:crypto").randomUUID();
+  await conversationModel.create({
+    userId: owner.id,
+    industry: "school",
+    intent: "general_support",
+    modelVersion: "moonlit-brain-v1",
+    message: "How does enrollment work?",
+    reply: "Start with the application form.",
+    threadId,
+  });
+  await conversationModel.create({
+    userId: owner.id,
+    industry: "school",
+    intent: "admissions",
+    modelVersion: "moonlit-brain-v1",
+    message: "When is the deadline?",
+    reply: "Please check with the admissions office.",
+    threadId,
+  });
+
+  assert.equal(
+    await conversationModel.setThreadLabel(owner.id, threadId, "Admissions"),
+    true,
+  );
+  const [thread] = await conversationModel.listThreadsForUser(owner.id, {
+    search: "deadline",
+  });
+  const otherThreads = await conversationModel.listThreadsForUser(other.id);
+
+  assert.equal(thread.id, threadId);
+  assert.equal(thread.title, "Admissions");
+  assert.equal(thread.messages.length, 4);
+  assert.equal(otherThreads.length, 0);
+  assert.equal(
+    await conversationModel.setThreadLabel(other.id, threadId, "Hijack"),
+    false,
+  );
+});

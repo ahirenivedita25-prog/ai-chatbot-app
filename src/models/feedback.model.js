@@ -52,4 +52,25 @@ async function list({ limit = 100 } = {}) {
   return feedbackRecords.slice(0, limit);
 }
 
-module.exports = { create, list };
+async function listForConversations(userId, conversationIds) {
+  const ids = [...new Set(conversationIds.map(String))];
+  if (!ids.length) return [];
+  if (pool) {
+    const result = await pool.query(
+      `SELECT conversation_id, rating FROM conversation_feedback
+       WHERE user_id = $1 AND conversation_id = ANY($2::bigint[])`,
+      [userId, ids],
+    );
+    return result.rows.map((row) => ({
+      conversationId: String(row.conversation_id),
+      rating: row.rating,
+    }));
+  }
+  return feedbackRecords
+    .filter(
+      (item) => item.userId === userId && ids.includes(item.conversationId),
+    )
+    .map(({ conversationId, rating }) => ({ conversationId, rating }));
+}
+
+module.exports = { create, list, listForConversations };
