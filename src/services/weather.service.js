@@ -1,5 +1,6 @@
 const CURRENT_WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather";
 const WEATHER_FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
+const LOCATION_SEARCH_URL = "https://api.openweathermap.org/geo/1.0/direct";
 
 function extractLocation(message) {
   const match = message.match(/\b(?:in|for|at)\s+(.+?)(?:[?.!,]|$)/i);
@@ -47,9 +48,22 @@ async function getWeatherReply({ message, isForecast, transport = fetch }) {
     return "Which city or location should I check the weather for?";
   }
 
-  const apiKey = process.env.WEATHER_API_KEY;
+  const apiKey = process.env.OPENWEATHER_KEY || process.env.WEATHER_API_KEY;
   if (!apiKey) {
-    return "Weather lookup is not configured yet. Set WEATHER_API_KEY to enable it.";
+    return "Weather lookup is not configured yet. Set OPENWEATHER_KEY to enable it.";
+  }
+
+  return getWeatherForLocation({ location, isForecast, transport });
+}
+
+async function getWeatherForLocation({
+  location,
+  isForecast = false,
+  transport = fetch,
+}) {
+  const apiKey = process.env.OPENWEATHER_KEY || process.env.WEATHER_API_KEY;
+  if (!apiKey) {
+    return "Weather lookup is not configured yet. Set OPENWEATHER_KEY to enable it.";
   }
 
   const url = new URL(
@@ -76,4 +90,37 @@ async function getWeatherReply({ message, isForecast, transport = fetch }) {
   return formatWeather(data, location, isForecast);
 }
 
-module.exports = { extractLocation, getWeatherReply };
+async function searchLocations({ query, transport = fetch }) {
+  const apiKey = process.env.OPENWEATHER_KEY || process.env.WEATHER_API_KEY;
+  if (!apiKey) throw new Error("Weather API is not configured");
+  const url = new URL(process.env.LOCATION_API_URL || LOCATION_SEARCH_URL);
+  url.searchParams.set("q", query);
+  url.searchParams.set("limit", "5");
+  url.searchParams.set("appid", apiKey);
+  const response = await transport(url, {
+    method: "GET",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Location API request failed with status ${response.status}`,
+    );
+  }
+  const locations = await response.json();
+  if (!Array.isArray(locations))
+    throw new Error("Location API returned an invalid response");
+  return locations.map(({ name, state, country, lat, lon }) => ({
+    name,
+    state: state || null,
+    country,
+    latitude: lat,
+    longitude: lon,
+  }));
+}
+
+module.exports = {
+  extractLocation,
+  getWeatherReply,
+  getWeatherForLocation,
+  searchLocations,
+};

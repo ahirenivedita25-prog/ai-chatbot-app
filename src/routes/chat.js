@@ -40,4 +40,43 @@ function createChatRouter(industry) {
   return router;
 }
 
-module.exports = { createChatRouter };
+function createPlainChatRouter() {
+  const router = express.Router();
+  router.post("/", async (req, res, next) => {
+    const validation = validateMessage(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+
+    const industry = req.body.industry || "school";
+    if (!["school", "clinic", "retail", "restaurant"].includes(industry)) {
+      return res.status(400).json({ error: "Unsupported industry" });
+    }
+
+    try {
+      const result = await answerMessage({
+        userId: req.user.id,
+        industry,
+        message: req.body.message,
+        attachments: req.body.attachments || [],
+      });
+      // Keep this compatibility endpoint's successful response as plain text.
+      return res.type("text/plain; charset=utf-8").send(result.reply);
+    } catch (error) {
+      if (error.message === "Malware detected") {
+        return res
+          .status(422)
+          .json({ error: "An attachment failed the malware scan" });
+      }
+      if (error.message.startsWith("Malware scanner")) {
+        return res
+          .status(503)
+          .json({ error: "File scanning is temporarily unavailable" });
+      }
+      return next(error);
+    }
+  });
+  return router;
+}
+
+module.exports = { createChatRouter, createPlainChatRouter };

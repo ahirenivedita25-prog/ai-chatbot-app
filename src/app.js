@@ -3,7 +3,12 @@ const express = require("express");
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const conversationRoutes = require("./routes/conversations");
-const { createChatRouter } = require("./routes/chat");
+const { createChatRouter, createPlainChatRouter } = require("./routes/chat");
+const {
+  weatherRouter,
+  locationRouter,
+  compareRouter,
+} = require("./routes/tools");
 const { requireAuth } = require("./middleware/auth");
 const { initializeDatabase } = require("./db");
 const path = require("node:path");
@@ -34,7 +39,10 @@ app.use(express.json({ limit: "8mb" }));
 app.use((req, res, next) => {
   if (process.env.NODE_ENV === "production" && !req.secure) {
     if (req.path === "/chat-status") return next();
-    if (req.path.startsWith("/api/")) {
+    if (
+      req.path.startsWith("/api/") ||
+      ["/chat", "/weather", "/location", "/compare"].includes(req.path)
+    ) {
       return res.status(426).json({ error: "HTTPS is required" });
     }
     return res.redirect(308, `https://${req.get("host")}${req.originalUrl}`);
@@ -85,6 +93,10 @@ app.use(
   userLimiter,
   createChatRouter("restaurant"),
 );
+app.use("/chat", requireAuth, userLimiter, createPlainChatRouter());
+app.use("/weather", requireAuth, userLimiter, weatherRouter);
+app.use("/location", requireAuth, userLimiter, locationRouter);
+app.use("/compare", requireAuth, userLimiter, compareRouter);
 app.use("/api/conversations", requireAuth, userLimiter, conversationRoutes);
 app.use("/api/admin", requireAuth, userLimiter, adminRoutes);
 

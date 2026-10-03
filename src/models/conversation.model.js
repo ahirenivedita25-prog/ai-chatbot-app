@@ -24,10 +24,11 @@ async function create({
   };
 
   if (pool) {
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO conversations
         (user_id, industry, intent, model_version, ciphertext, iv, auth_tag)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, created_at`,
       [
         userId,
         industry,
@@ -38,10 +39,26 @@ async function create({
         encrypted.authTag,
       ],
     );
+    record.id = result.rows[0].id;
+    record.createdAt = result.rows[0].created_at.toISOString();
   } else {
     records.push(record);
   }
   return { id: record.id, createdAt: record.createdAt };
+}
+
+async function existsForUser(id, userId) {
+  if (pool) {
+    if (!/^\d+$/.test(String(id))) return false;
+    const result = await pool.query(
+      "SELECT 1 FROM conversations WHERE id = $1 AND user_id = $2",
+      [id, userId],
+    );
+    return result.rowCount > 0;
+  }
+  return records.some(
+    (record) => String(record.id) === String(id) && record.userId === userId,
+  );
 }
 
 async function list({ limit = 100 } = {}) {
@@ -120,4 +137,4 @@ async function listForUser(userId, { limit = 100 } = {}) {
     }));
 }
 
-module.exports = { create, list, listForUser };
+module.exports = { create, list, listForUser, existsForUser };

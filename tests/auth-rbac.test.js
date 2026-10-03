@@ -77,6 +77,16 @@ test("admin routes deny regular users and write audit events", async () => {
     assert.equal(adminResponse.status, 200);
     assert.equal(settings.modelVersion, "moonlit-brain-v1");
     assert.equal(memberResponse.status, 403);
+    const failuresResponse = await fetch(`${url}/api/admin/failed-queries`, {
+      headers: { authorization: `Bearer ${admin.body.token}` },
+    });
+    const memberFailuresResponse = await fetch(
+      `${url}/api/admin/failed-queries`,
+      { headers: { authorization: `Bearer ${member.body.token}` } },
+    );
+    assert.equal(failuresResponse.status, 200);
+    assert.deepEqual((await failuresResponse.json()).failures, []);
+    assert.equal(memberFailuresResponse.status, 403);
     assert.ok(
       (await auditModel.list()).some(
         (event) => event.action === "admin.get/settings",

@@ -49,6 +49,26 @@ async function initializeDatabase() {
     );
     CREATE INDEX IF NOT EXISTS admin_audit_created_idx
       ON admin_audit(created_at DESC);
+    CREATE TABLE IF NOT EXISTS failed_queries (
+      id BIGSERIAL PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      industry TEXT NOT NULL,
+      model_version TEXT NOT NULL,
+      error_type TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS failed_queries_created_idx
+      ON failed_queries(created_at DESC);
+    CREATE TABLE IF NOT EXISTS conversation_feedback (
+      id BIGSERIAL PRIMARY KEY,
+      conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rating TEXT NOT NULL CHECK (rating IN ('helpful', 'not_helpful')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (conversation_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS conversation_feedback_created_idx
+      ON conversation_feedback(created_at DESC);
   `);
 }
 

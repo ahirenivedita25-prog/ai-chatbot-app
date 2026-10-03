@@ -5,4 +5,8 @@ dist/
 !.env.example
 coverage/
 logs/
+__pycache__/
+*.py[cod]
+training/prepared/
+moonlit-brain-v*/
 .DS_Store

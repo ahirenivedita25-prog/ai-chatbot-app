@@ -1,7 +1,6 @@
 # Roadmap
 
-1. Replace in-memory models with a durable database and migrations.
-2. Add authentication, tenant isolation, rate limiting, and audit logging.
-3. Connect approved chatbot providers and WhatsApp templates.
-4. Add admin configuration for each industry.
-5. Add observability, deployment automation, and end-to-end provider tests.
+1. Add feedback review/export tooling with explicit human approval before examples are appended to training data.
+2. Add provider-specific product comparison integrations when API access, licenses, and credentials are configured; `/compare` currently structures caller-supplied facts only.
+3. Add distributed rate-limit storage before scaling beyond one app instance.
+4. Add deployment automation and live provider contract checks without exposing secrets.

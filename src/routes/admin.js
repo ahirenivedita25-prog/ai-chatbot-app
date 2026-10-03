@@ -1,6 +1,8 @@
 const express = require("express");
 const auditModel = require("../models/audit.model");
 const conversationModel = require("../models/conversation.model");
+const failedQueryModel = require("../models/failed-query.model");
+const feedbackModel = require("../models/feedback.model");
 const { requireAdmin } = require("../middleware/auth");
 const { modelVersion } = require("../services/chat.service");
 
@@ -34,6 +36,22 @@ router.get("/settings", (_req, res) => {
 router.get("/audit", async (_req, res, next) => {
   try {
     return res.json({ events: await auditModel.list({ limit: 100 }) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/failed-queries", async (_req, res, next) => {
+  try {
+    return res.json({ failures: await failedQueryModel.list({ limit: 100 }) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/feedback", async (_req, res, next) => {
+  try {
+    return res.json({ feedback: await feedbackModel.list({ limit: 100 }) });
   } catch (error) {
     return next(error);
   }
