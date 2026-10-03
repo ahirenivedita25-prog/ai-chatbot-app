@@ -43,6 +43,11 @@ test("chatbot service sends industry context to the AI provider", async () => {
     assert.equal(payload.messages[0].role, "system");
     assert.match(payload.messages[0].content, /clinic desk/i);
     assert.match(payload.messages[0].content, /moonlit/i);
+    assert.match(payload.messages[0].content, /numbered steps/i);
+    assert.match(payload.messages[0].content, /aligned plain-text tables/i);
+    assert.match(payload.messages[0].content, /text bar charts/i);
+    assert.match(payload.messages[0].content, /location-based requests/i);
+    assert.match(payload.messages[0].content, /do not claim to have browsed/i);
     assert.equal(
       payload.messages[1].content,
       "Do you have appointments tomorrow?",
@@ -51,7 +56,7 @@ test("chatbot service sends industry context to the AI provider", async () => {
       request.options.headers.Authorization,
       "Bearer test-provider-key",
     );
-    assert.match(payload.messages[0].content, /plain text/);
+    assert.match(payload.messages[0].content, /plain-text chat bubble/);
   } finally {
     if (originalKey === undefined) delete process.env.AI_API_KEY;
     else process.env.AI_API_KEY = originalKey;
@@ -72,6 +77,44 @@ test("chatbot service explains when real AI is not configured", async () => {
   } finally {
     if (originalKey === undefined) delete process.env.AI_API_KEY;
     else process.env.AI_API_KEY = originalKey;
+  }
+});
+
+test("chatbot service routes weather requests to the weather API", async () => {
+  const originalAiKey = process.env.AI_API_KEY;
+  const originalWeatherKey = process.env.WEATHER_API_KEY;
+  delete process.env.AI_API_KEY;
+  process.env.WEATHER_API_KEY = "test-weather-key";
+  let requestedUrl;
+
+  try {
+    const reply = await generateReply({
+      industry: "school",
+      message: "What's the weather in Paris?",
+      transport: async (url) => {
+        requestedUrl = new URL(url);
+        return {
+          ok: true,
+          json: async () => ({
+            name: "Paris",
+            weather: [{ id: 800, description: "clear sky" }],
+            main: { temp: 24, humidity: 50 },
+            wind: { speed: 2 },
+          }),
+        };
+      },
+    });
+
+    assert.equal(requestedUrl.searchParams.get("q"), "Paris");
+    assert.match(reply, /☀️ Condition: Clear Sky/);
+    assert.match(reply, /🌡️ Temperature: 24°C/);
+    assert.match(reply, /💧 Humidity: 50%/);
+    assert.match(reply, /🌬️ Wind: 7 km\/h/);
+  } finally {
+    if (originalAiKey === undefined) delete process.env.AI_API_KEY;
+    else process.env.AI_API_KEY = originalAiKey;
+    if (originalWeatherKey === undefined) delete process.env.WEATHER_API_KEY;
+    else process.env.WEATHER_API_KEY = originalWeatherKey;
   }
 });
 

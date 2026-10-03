@@ -1,5 +1,7 @@
 const defaultApiUrl = "https://api.openai.com/v1/chat/completions";
 const assistantName = process.env.AI_ASSISTANT_NAME || "moonlit";
+const { classifyIntent } = require("./intent.service");
+const { getWeatherReply } = require("./weather.service");
 
 const industryGuidance = {
   school: "school fees, schedules, admissions, and family support",
@@ -79,6 +81,14 @@ async function generateReply({
   attachments = [],
   transport = fetch,
 }) {
+  if (classifyIntent(message) === "weather") {
+    return getWeatherReply({
+      message,
+      isForecast: /\bforecast\b/i.test(message),
+      transport,
+    });
+  }
+
   const apiKey = process.env.AI_API_KEY;
   if (!apiKey) return fallbackReply(industry);
 
@@ -97,7 +107,7 @@ async function generateReply({
       messages: [
         {
           role: "system",
-          content: `You are ${assistantName}, a helpful assistant serving the ${industry} desk. Help with ${industryGuidance[industry]}, but answer any question the user asks. Respond only in plain text: do not return JSON, Markdown formatting, tables, or code fences. Be direct, clear, and concise. Use the user's message and attachments as context. Never invent private account, payment, medical, legal, or appointment details; explain what information is needed or direct the user to staff when an answer requires private or live data.`,
+          content: `You are ${assistantName}, a helpful multi-source assistant serving the ${industry} desk. Help with ${industryGuidance[industry]}, but answer any question the user asks. First infer the user's intent and context, then choose the clearest concise format: short paragraphs for simple answers, bullets for grouped points, numbered steps for procedures, aligned plain-text tables for comparisons, and compact text bar charts for numerical data. For location-based requests, present results as a structured list with a distinct icon per result when the source provides enough detail. Use only information available in the user's message, attachments, or your reliable general knowledge; do not claim to have browsed or verified external sources. Identify uncertainty and attribute details to supplied sources when useful. Format for a plain-text chat bubble: do not return JSON, Markdown tables, or code fences; use readable labels and spacing, and use simple text bars (for example, ███) rather than graphical charts. Keep answers clear, useful, and professional without defaulting to long paragraphs. Never invent private account, payment, medical, legal, location, or appointment details; explain what information is missing or direct the user to staff when an answer requires private or live data.`,
         },
         { role: "user", content: userContent },
       ],
