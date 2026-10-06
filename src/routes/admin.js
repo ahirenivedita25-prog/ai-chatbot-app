@@ -4,8 +4,10 @@ const conversationModel = require("../models/conversation.model");
 const failedQueryModel = require("../models/failed-query.model");
 const feedbackModel = require("../models/feedback.model");
 const invitationModel = require("../models/invitation.model");
+const { pool } = require("../db");
 const { requireAdmin } = require("../middleware/auth");
 const { modelVersion } = require("../services/chat.service");
+const analyticsService = require("../services/analytics.service");
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -28,6 +30,9 @@ router.get("/settings", (_req, res) => {
       sessionMinutes: 15,
       refreshDays: 7,
       attachmentScanning: Boolean(process.env.CLAMAV_HOST),
+      imageEnhancement: Boolean(
+        process.env.IMAGE_API_URL && process.env.IMAGE_API_KEY,
+      ),
     });
   } catch {
     return res.status(500).json({ error: "Settings are unavailable" });
@@ -191,6 +196,90 @@ router.get("/failed-queries", async (_req, res, next) => {
 router.get("/feedback", async (_req, res, next) => {
   try {
     return res.json({ feedback: await feedbackModel.list({ limit: 100 }) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/analytics", async (_req, res, next) => {
+  try {
+    let conversations;
+    let conversationTotals;
+    let feedback;
+    let failures;
+    if (pool) {
+      [conversations, conversationTotals, feedback, failures] =
+        await Promise.all([
+          pool.query(
+            `SELECT COUNT(*)::int AS total, created_at::date::text AS day
+           FROM conversations
+           WHERE created_at >= NOW() - INTERVAL '6 days'
+           GROUP BY created_at::date ORDER BY day`,
+          ),
+          pool.query(
+            `SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS last_week
+           FROM conversations`,
+          ),
+          pool.query(
+            `SELECT rating, COUNT(*)::int AS count
+           FROM conversation_feedback GROUP BY rating`,
+          ),
+          pool.query(
+            `SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS last_week
+           FROM failed_queries`,
+          ),
+        ]);
+    } else {
+      [conversations, feedback, failures] = await Promise.all([
+        conversationModel.list({ limit: 5000 }),
+        feedbackModel.list({ limit: 5000 }),
+        failedQueryModel.list({ limit: 5000 }),
+      ]);
+    }
+
+    const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const usageByDay = Array.from({ length: 7 }, (_, offset) => {
+      const date = new Date();
+      date.setUTCHours(0, 0, 0, 0);
+      date.setUTCDate(date.getUTCDate() - (6 - offset));
+      const day = date.toISOString().slice(0, 10);
+      const count = pool
+        ? Number(conversations.rows.find((row) => row.day === day)?.total || 0)
+        : conversations.filter((item) => item.createdAt.slice(0, 10) === day)
+            .length;
+      return { day, count };
+    });
+    const feedbackCounts = pool
+      ? Object.fromEntries(feedback.rows.map((row) => [row.rating, row.count]))
+      : feedback.reduce((counts, item) => {
+          counts[item.rating] = (counts[item.rating] || 0) + 1;
+          return counts;
+        }, {});
+    const conversationTotal = pool
+      ? Number(conversationTotals.rows[0]?.total || 0)
+      : conversations.length;
+    const failureTotal = pool
+      ? Number(failures.rows[0]?.total || 0)
+      : failures.length;
+    const weekConversations = pool
+      ? Number(conversationTotals.rows[0]?.last_week || 0)
+      : conversations.filter((item) => Date.parse(item.createdAt) >= since)
+          .length;
+    const weekFailures = pool
+      ? Number(failures.rows[0]?.last_week || 0)
+      : failures.filter((item) => Date.parse(item.createdAt) >= since).length;
+
+    return res.json({
+      conversations: conversationTotal,
+      conversationsLastWeek: weekConversations,
+      feedback: feedbackCounts,
+      failures: failureTotal,
+      failuresLastWeek: weekFailures,
+      usageByDay,
+      performance: analyticsService.performanceSummary(),
+    });
   } catch (error) {
     return next(error);
   }

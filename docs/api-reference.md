@@ -36,6 +36,10 @@ Invalid or missing messages return HTTP 400.
 
 `POST /chat` accepts the same JSON body plus an optional `industry` and returns the reply as `text/plain`.
 
+`POST /api/images/enhance` requires an admin or editor token and a configured Images API provider. It accepts one PNG, JPEG, or WebP image up to 1 MB and a `style` of `upscale_sharpen`, `background_cleanup`, `sketch`, `professional`, or `creative`. The source image is malware-scanned before it is sent to the configured provider. The response contains the enhanced image as a PNG data URL. Enhancement events are audited; image data is not stored in conversation records.
+
+`GET /api/admin/analytics` is admin-only and returns aggregate chat/feedback/failure counts, a seven-day usage series, and process-local AI inference latency samples. It excludes message content and identifiers.
+
 ## Tools
 
 All tool routes require `Authorization: Bearer <access-token>`.

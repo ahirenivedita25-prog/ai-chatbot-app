@@ -25,6 +25,16 @@ export default function App() {
   const [theme, setTheme] = useState(
     () => localStorage.getItem("moonlit-theme") || "light",
   );
+  const [pinnedIds, setPinnedIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("moonlit-pins") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [replyTo, setReplyTo] = useState(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState([]);
   const refreshInFlight = useRef(null);
 
   const acceptSession = useCallback((session) => {
@@ -108,6 +118,10 @@ export default function App() {
   }, [sidebarCollapsed]);
 
   useEffect(() => {
+    localStorage.setItem("moonlit-pins", JSON.stringify(pinnedIds));
+  }, [pinnedIds]);
+
+  useEffect(() => {
     function onShortcut(event) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -131,28 +145,48 @@ export default function App() {
     setUser(null);
     setMessages([]);
     setThreads([]);
+    setGeneratedImages([]);
+    setPinnedIds([]);
     setStatus("Signed out.");
   }
 
-  async function sendMessage(message, attachments, action = "") {
+  async function sendMessage(message, attachments, action = "", reply = null) {
     setBusy(true);
     setStatus("");
     const activeThreadId = activeId;
     const existingThread = threads.find(
       (thread) => thread.id === activeThreadId,
     );
+    const localImageMessages = messages.filter(
+      (item) =>
+        item.role === "assistant" &&
+        item.attachments?.length &&
+        !(existingThread?.messages || []).some((saved) => saved.id === item.id),
+    );
     const userText =
       message || `Review ${attachments.map((file) => file.name).join(", ")}.`;
+    const requestText = reply
+      ? `Replying to: ${reply.text}\n\n${userText}`
+      : userText;
     setMessages((current) => [
       ...current,
-      { id: crypto.randomUUID(), role: "user", text: userText },
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        text: userText,
+        replyTo: reply,
+        attachments: attachments.filter(
+          (file) => file.type?.startsWith("image/") && file.data,
+        ),
+      },
     ]);
+    setReplyTo(null);
     try {
       const response = await apiRequest("/api/school/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message,
+          message: requestText,
           attachments,
           threadId: activeThreadId,
           action,
@@ -168,10 +202,15 @@ export default function App() {
         industry: result.industry,
         messages: [
           ...(existingThread?.messages || []),
+          ...localImageMessages,
           {
             id: `${result.conversationId}-question`,
             role: "user",
             text: userText,
+            replyTo: reply,
+            attachments: attachments.filter(
+              (file) => file.type?.startsWith("image/") && file.data,
+            ),
           },
           {
             id: `${result.conversationId}-answer`,
@@ -232,6 +271,19 @@ export default function App() {
       setStatus(error.message);
     }
   }
+
+  function togglePin(message) {
+    setPinnedIds((current) =>
+      current.includes(message.id)
+        ? current.filter((id) => id !== message.id)
+        : [...current, message.id],
+    );
+    setStatus(
+      pinnedIds.includes(message.id) ? "Message unpinned." : "Message pinned.",
+    );
+  }
+
+  const galleryImages = generatedImages;
 
   async function renameThread(thread) {
     const label = window.prompt("Name this chat", thread.label || thread.title);
@@ -326,20 +378,104 @@ export default function App() {
           >
             {theme === "light" ? "◐" : "☼"}
           </button>
+          <button
+            className="icon-control gallery-toggle"
+            type="button"
+            aria-label={`Open image gallery, ${galleryImages.length} images`}
+            title="Image gallery"
+            onClick={() => setGalleryOpen(true)}
+          >
+            ▦ <span>{galleryImages.length}</span>
+          </button>
         </header>
-        <MessageList messages={messages} busy={busy} onFeedback={rateMessage} />
+        <MessageList
+          messages={messages}
+          busy={busy}
+          onFeedback={rateMessage}
+          pinnedIds={pinnedIds}
+          onTogglePin={togglePin}
+          onReply={(message) =>
+            setReplyTo({ id: message.id, text: message.text })
+          }
+        />
         {user.role === "viewer" ? (
           <p className="viewer-notice" role="status">
             Viewer access · you can read and rate responses, but cannot send
             messages.
           </p>
         ) : (
-          <Composer onSend={sendMessage} busy={busy} apiRequest={apiRequest} />
+          <Composer
+            onSend={sendMessage}
+            busy={busy}
+            apiRequest={apiRequest}
+            replyTo={replyTo}
+            onClearReply={() => setReplyTo(null)}
+            onImageEnhanced={(image, style) => {
+              const galleryImage = { ...image, id: crypto.randomUUID() };
+              const enhancedMessage = {
+                id: crypto.randomUUID(),
+                role: "assistant",
+                text: `Image enhancement complete · ${style.replaceAll("_", " ")}`,
+                attachments: [galleryImage],
+              };
+              setGeneratedImages((current) => [...current, galleryImage]);
+              setMessages((current) => [...current, enhancedMessage]);
+              setThreads((current) =>
+                current.map((thread) =>
+                  thread.id === activeId
+                    ? {
+                        ...thread,
+                        messages: [...thread.messages, enhancedMessage],
+                      }
+                    : thread,
+                ),
+              );
+            }}
+          />
         )}
         <div role="status" className="composer-caption">
           {status}
         </div>
       </section>
+      {galleryOpen && (
+        <div
+          className="dialog-backdrop"
+          role="presentation"
+          onClick={() => setGalleryOpen(false)}
+        >
+          <section
+            className="dialog image-gallery"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gallery-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="dialog-header">
+              <h2 id="gallery-title">Generated image gallery</h2>
+              <button
+                className="icon-control"
+                type="button"
+                aria-label="Close image gallery"
+                onClick={() => setGalleryOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            {galleryImages.length ? (
+              <div className="gallery-grid">
+                {galleryImages.map((image) => (
+                  <figure key={image.id}>
+                    <img src={image.data} alt={image.name} />
+                    <figcaption>{image.name}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">No images in this conversation yet.</p>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }

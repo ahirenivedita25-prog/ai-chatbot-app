@@ -10,11 +10,20 @@ const acceptedTypes = new Set([
   "application/json",
 ]);
 
-export default function Composer({ onSend, busy, apiRequest }) {
+export default function Composer({
+  onSend,
+  busy,
+  apiRequest,
+  replyTo,
+  onClearReply,
+  onImageEnhanced,
+}) {
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState([]);
   const [dragging, setDragging] = useState(false);
   const [fileError, setFileError] = useState("");
+  const [enhancementStyle, setEnhancementStyle] = useState("upscale_sharpen");
+  const [enhancingName, setEnhancingName] = useState("");
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [cloudProvider, setCloudProvider] = useState(() => {
@@ -131,6 +140,25 @@ export default function Composer({ onSend, busy, apiRequest }) {
   }
 
   async function addFiles(fileList) {
+    async function enhanceImage(file) {
+      setEnhancingName(file.name);
+      setFileError("");
+      try {
+        const response = await apiRequest("/api/images/enhance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: file, style: enhancementStyle }),
+        });
+        const result = await response.json();
+        if (!response.ok)
+          throw new Error(result.error || "Could not enhance image");
+        onImageEnhanced?.(result.image, result.style);
+      } catch (error) {
+        setFileError(error.message);
+      } finally {
+        setEnhancingName("");
+      }
+    }
     const next = [...files];
     setFileError("");
     for (const file of Array.from(fileList)) {
@@ -169,7 +197,7 @@ export default function Composer({ onSend, busy, apiRequest }) {
   async function submit(event) {
     event.preventDefault();
     if (!message.trim() && !files.length) return;
-    await onSend(message.trim(), files);
+    await onSend(message.trim(), files, "", replyTo);
     setMessage("");
     setFiles([]);
   }
@@ -191,26 +219,68 @@ export default function Composer({ onSend, busy, apiRequest }) {
         "Create a concise report from the following context. Include a title, key findings, and recommended next steps:\n",
       translate:
         "Translate the following text into English, preserving its meaning and tone:\n",
+      chart:
+        "Create a chart or graph from the data below. Choose an appropriate chart type, provide a clear title and labeled axes, and summarize the key pattern:\n",
     };
     setMessage((current) => `${prompts[action]}${current}`);
   }
 
   return (
     <div className="composer-wrap">
+      {replyTo && (
+        <div className="reply-composer" role="status">
+          <span>Replying to: {replyTo.text.slice(0, 120)}</span>
+          <button
+            type="button"
+            aria-label="Cancel reply"
+            onClick={onClearReply}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {files.length > 0 && (
-        <div className="attachment-list" aria-live="polite">
-          {files.map((file, index) => (
-            <div className="attachment-chip" key={`${file.name}-${index}`}>
-              <span>{file.name}</span>
-              <button
-                type="button"
-                aria-label={`Remove ${file.name}`}
-                onClick={() => setFiles(files.filter((_, i) => i !== index))}
+        <div className="attachment-area" aria-live="polite">
+          <div className="attachment-list">
+            {files.map((file, index) => (
+              <div className="attachment-chip" key={`${file.name}-${index}`}>
+                <span>{file.name}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${file.name}`}
+                  onClick={() => setFiles(files.filter((_, i) => i !== index))}
+                >
+                  ×
+                </button>
+                {file.type?.startsWith("image/") && (
+                  <button
+                    className="enhance-image-button"
+                    type="button"
+                    disabled={Boolean(enhancingName)}
+                    onClick={() => void enhanceImage(file)}
+                  >
+                    {enhancingName === file.name ? "Enhancing…" : "Enhance"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {files.some((file) => file.type?.startsWith("image/")) && (
+            <label className="enhancement-picker">
+              Image enhancement
+              <select
+                aria-label="Image enhancement style"
+                value={enhancementStyle}
+                onChange={(event) => setEnhancementStyle(event.target.value)}
               >
-                ×
-              </button>
-            </div>
-          ))}
+                <option value="upscale_sharpen">Upscale and sharpen</option>
+                <option value="background_cleanup">Background cleanup</option>
+                <option value="sketch">Sketch</option>
+                <option value="professional">Professional</option>
+                <option value="creative">Creative</option>
+              </select>
+            </label>
+          )}
         </div>
       )}
       <form
@@ -323,6 +393,13 @@ export default function Composer({ onSend, busy, apiRequest }) {
         <button
           type="button"
           disabled={busy}
+          onClick={() => runQuickAction("chart")}
+        >
+          Create chart/graph
+        </button>
+        <button
+          type="button"
+          disabled={busy}
           onClick={() => {
             setCloudFiles([]);
             setCloudError("");
@@ -348,7 +425,9 @@ export default function Composer({ onSend, busy, apiRequest }) {
         </button>
       </div>
       <p className="composer-caption">
-        Attachments are scanned before processing.
+        Attachments are malware-scanned and sent to the configured AI provider.
+        Moonlit stores chat text, not uploaded file contents; provider retention
+        follows its privacy policy.
       </p>
       {cloudProvider && (
         <div

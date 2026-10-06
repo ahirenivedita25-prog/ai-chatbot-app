@@ -12,6 +12,7 @@ export default function AdminMenu({ onLogout, apiRequest }) {
   const [integrationBusy, setIntegrationBusy] = useState(false);
   const [integrationError, setIntegrationError] = useState("");
   const [audit, setAudit] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const root = useRef(null);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function AdminMenu({ onLogout, apiRequest }) {
       else if (name === "help") setHelp(data);
       else if (name === "integrations") setIntegrations(data.integrations);
       else if (name === "audit") setAudit(data.events);
+      else if (name === "analytics") setAnalytics(data);
     }
   }
 
@@ -94,6 +96,9 @@ export default function AdminMenu({ onLogout, apiRequest }) {
           <button role="menuitem" onClick={() => void showPanel("audit")}>
             Activity log
           </button>
+          <button role="menuitem" onClick={() => void showPanel("analytics")}>
+            Analytics
+          </button>
           <button role="menuitem" onClick={() => void showPanel("help")}>
             Help
           </button>
@@ -123,6 +128,7 @@ export default function AdminMenu({ onLogout, apiRequest }) {
                     help: "Moonlit help",
                     integrations: "Integrations",
                     audit: "Activity log",
+                    analytics: "Usage analytics",
                   }[panel]
                 }
               </h2>
@@ -144,6 +150,10 @@ export default function AdminMenu({ onLogout, apiRequest }) {
                   <dt>Attachment scanning</dt>
                   <dd>
                     {settings.attachmentScanning ? "Enabled" : "Unavailable"}
+                  </dd>
+                  <dt>AI image enhancement</dt>
+                  <dd>
+                    {settings.imageEnhancement ? "Enabled" : "Not configured"}
                   </dd>
                 </dl>
               ) : (
@@ -244,6 +254,81 @@ export default function AdminMenu({ onLogout, apiRequest }) {
                 ))}
                 {!audit?.length && <li>No recent activity.</li>}
               </ul>
+            ) : panel === "analytics" ? (
+              analytics ? (
+                <div className="analytics-panel">
+                  <div className="analytics-stats">
+                    <div>
+                      <strong>{analytics.conversationsLastWeek}</strong>
+                      <span>Chats this week</span>
+                    </div>
+                    <div>
+                      <strong>{analytics.feedback.helpful || 0}</strong>
+                      <span>Helpful ratings</span>
+                    </div>
+                    <div>
+                      <strong>{analytics.feedback.not_helpful || 0}</strong>
+                      <span>Needs improvement</span>
+                    </div>
+                    <div>
+                      <strong>{analytics.failuresLastWeek}</strong>
+                      <span>Failures this week</span>
+                    </div>
+                    <div>
+                      <strong>
+                        {analytics.performance.averageMs ?? "—"} ms
+                      </strong>
+                      <span>
+                        Average AI response · {analytics.performance.samples}{" "}
+                        samples
+                      </span>
+                    </div>
+                  </div>
+                  <h3>Chat activity · 7 days</h3>
+                  <div
+                    className="analytics-chart"
+                    role="img"
+                    aria-label="Daily chat volume for the past seven days"
+                  >
+                    {analytics.usageByDay.map((day) => {
+                      const peak = Math.max(
+                        1,
+                        ...analytics.usageByDay.map((item) => item.count),
+                      );
+                      return (
+                        <div className="analytics-day" key={day.day}>
+                          <span>{day.count}</span>
+                          <div>
+                            <i
+                              style={{
+                                height: `${Math.max(4, (day.count / peak) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <small>
+                            {new Date(
+                              `${day.day}T12:00:00Z`,
+                            ).toLocaleDateString(undefined, {
+                              weekday: "short",
+                              timeZone: "UTC",
+                            })}
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="analytics-note">
+                    {analytics.conversations} total chats · {analytics.failures}{" "}
+                    recorded failures. Latency is process-local and resets when
+                    the server restarts. Mean{" "}
+                    {analytics.performance.averageMs ?? "—"} ms · p95{" "}
+                    {analytics.performance.p95Ms ?? "—"} ms. Counts exclude
+                    message content and identifiers.
+                  </p>
+                </div>
+              ) : (
+                <p>Loading analytics…</p>
+              )
             ) : help ? (
               <ul>
                 {help.topics.map((topic) => (

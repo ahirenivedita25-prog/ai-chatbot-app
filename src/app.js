@@ -150,6 +150,14 @@ app.use(
   conversationRoutes,
 );
 app.use("/api/integrations", integrationRoutes);
+const imageRoutes = require("./routes/images");
+app.use(
+  "/api/images",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  imageRoutes,
+);
 app.use("/api/admin", requireAuth, userLimiter, adminRoutes);
 
 app.get("*", (req, res, next) => {

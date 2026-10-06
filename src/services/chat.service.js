@@ -3,6 +3,8 @@ const { scanAttachments } = require("./attachment-scan.service");
 const { classifyIntent } = require("./intent.service");
 const conversationModel = require("../models/conversation.model");
 const failedQueryModel = require("../models/failed-query.model");
+const analytics = require("./analytics.service");
+const { performance } = require("node:perf_hooks");
 
 function modelVersion() {
   const configured = process.env.MOONLIT_MODEL_VERSION;
@@ -45,13 +47,16 @@ async function answerMessage({
 
   const version = modelVersion();
   let reply;
+  const inferenceStartedAt = performance.now();
   try {
     reply = await generateReply({
       industry,
       message: safeMessage,
       attachments: safeAttachments,
     });
+    analytics.trackInferenceDuration(performance.now() - inferenceStartedAt);
   } catch (error) {
+    analytics.trackInferenceDuration(performance.now() - inferenceStartedAt);
     const errorType = /empty response/i.test(error.message)
       ? "empty_response"
       : "provider_error";
