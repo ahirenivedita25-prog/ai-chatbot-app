@@ -123,6 +123,7 @@ h1 {
 }
 .app-shell {
   display: grid;
+  height: 100dvh;
   min-height: 100vh;
   grid-template-columns: 260px minmax(0, 1fr);
 }
@@ -202,6 +203,76 @@ h1 {
 .sidebar-tools {
   display: grid;
   gap: 8px;
+}
+.sidebar-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 3px;
+  border: 1px solid #e2ebe5;
+  border-radius: 7px;
+  background: #f4f8f5;
+}
+.sidebar-sections button {
+  display: flex;
+  min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #64736b;
+  font-size: 10px;
+}
+.sidebar-sections button.selected {
+  background: #fff;
+  color: #205f54;
+  box-shadow: 0 1px 3px #1c342012;
+}
+.sidebar-section-count {
+  color: #87938d;
+  font-size: 9px;
+}
+.sidebar-mini .sidebar-sections {
+  width: 100%;
+  grid-template-columns: 1fr;
+}
+.sidebar-mini .sidebar-section-label,
+.sidebar-mini .sidebar-section-count {
+  display: none;
+}
+.sidebar-mini .sidebar-sections button {
+  width: 42px;
+  justify-self: center;
+}
+.sidebar-gallery {
+  min-height: 0;
+  overflow-y: auto;
+}
+.sidebar-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 4px;
+}
+.sidebar-gallery-grid button {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border: 1px solid #dce7df;
+  border-radius: 5px;
+  background: #f4f8f5;
+}
+.sidebar-gallery-grid img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .nav-button {
   display: flex;
@@ -369,6 +440,95 @@ h1 {
 .icon-control:hover {
   background: #eaf2ec;
 }
+.notification-root {
+  position: relative;
+  flex: 0 0 38px;
+}
+.notification-toggle {
+  position: relative;
+  font-size: 16px;
+  font-weight: 700;
+}
+.notification-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  padding: 0 3px;
+  border: 1px solid #fff;
+  border-radius: 9px;
+  background: #b34d40;
+  color: #fff;
+  font-size: 9px;
+  line-height: 1;
+}
+.notification-panel {
+  position: absolute;
+  z-index: 18;
+  top: calc(100% + 9px);
+  right: 0;
+  width: min(340px, calc(100vw - 28px));
+  max-height: min(65dvh, 480px);
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid #dce7df;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 32px #1f3a2e20;
+}
+.notification-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid #e6ece8;
+  color: #30443a;
+  font-size: 12px;
+}
+.notification-heading button {
+  border: 0;
+  background: transparent;
+  color: #22675b;
+  font-size: 10px;
+}
+.notification-panel ul {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.notification-panel li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 7px;
+  border-bottom: 1px solid #edf1ee;
+  color: #64736b;
+  font-size: 11px;
+}
+.notification-panel li.unread {
+  border-left: 2px solid #6d9a82;
+  background: #f5f8f6;
+}
+.notification-panel li strong {
+  color: #30443a;
+  font-size: 11px;
+}
+.notification-panel li span {
+  overflow-wrap: anywhere;
+}
+.notification-panel li time {
+  color: #87938d;
+  font-size: 9px;
+}
+.notification-panel > .muted {
+  margin: 14px 4px 4px;
+  font-size: 11px;
+}
 .menu-popover {
   position: absolute;
   z-index: 10;
@@ -404,8 +564,9 @@ h1 {
 }
 .workspace {
   display: flex;
+  height: 100dvh;
   min-width: 0;
-  min-height: 100vh;
+  min-height: 0;
   flex-direction: column;
   background: #fff;
 }
@@ -439,8 +600,11 @@ h1 {
 .messages {
   width: min(900px, 100%);
   flex: 1;
+  min-height: 0;
   align-self: center;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 30px clamp(18px, 6vw, 76px);
 }
 .pinned-messages {
@@ -1091,6 +1255,18 @@ h1 {
 .cloud-connect {
   width: 100%;
 }
+.large-text .bubble,
+.large-text .composer textarea,
+.large-text .history-item,
+.large-text .quick-actions button,
+.large-text .message-tools button,
+.large-text .composer-caption,
+.large-text .viewer-notice {
+  font-size: 1.15em;
+}
+.large-text .composer-caption {
+  line-height: 1.5;
+}
 
 [data-theme="dark"] body {
   background: #18221f;
@@ -1149,6 +1325,25 @@ h1 {
 [data-theme="dark"] .analytics-stats strong {
   color: #e1eae4;
 }
+[data-theme="dark"] .sidebar-sections {
+  border-color: #35463f;
+  background: #18221f;
+}
+[data-theme="dark"] .sidebar-sections button.selected {
+  background: #2b4037;
+  color: #e1eae4;
+}
+[data-theme="dark"] .notification-panel {
+  border-color: #35463f;
+  background: #202c28;
+}
+[data-theme="dark"] .notification-heading,
+[data-theme="dark"] .notification-panel li strong {
+  color: #e1eae4;
+}
+[data-theme="dark"] .notification-panel li.unread {
+  background: #263630;
+}
 [data-theme="dark"] .message.user .bubble,
 [data-theme="dark"] .history-row.active,
 [data-theme="dark"] .history-row:hover,
@@ -1176,6 +1371,7 @@ h1 {
 @media (max-width: 720px) {
   .app-shell {
     display: block;
+    height: 100dvh;
   }
   .app-shell.sidebar-collapsed {
     display: block;

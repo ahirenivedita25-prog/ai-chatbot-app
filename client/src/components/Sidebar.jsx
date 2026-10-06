@@ -11,6 +11,10 @@ export default function Sidebar({
   apiRequest,
   onRename,
   collapsed,
+  section,
+  onSectionChange,
+  generatedImages,
+  onImageClick,
   onToggleCollapsed,
   open,
   onClose,
@@ -135,67 +139,123 @@ export default function Sidebar({
             </button>
           )}
         </div>
-        <div className="history-heading">
-          <p className="history-title">Recent Chats</p>
-          <span>{filteredThreads.length}</span>
-        </div>
-        {!collapsed && (
-          <div className="thread-filters">
-            <input
-              aria-label="Search chats"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search chats"
-            />
-            <select
-              aria-label="Filter chats by workspace"
-              value={industry}
-              onChange={(event) => setIndustry(event.target.value)}
-            >
-              <option value="all">All workspaces</option>
-              {[
-                ...new Set(
-                  threads.map((thread) => thread.industry).filter(Boolean),
-                ),
-              ].map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        <nav className="history-list" aria-label="Recent chats">
-          {filteredThreads.map((thread) => (
-            <div
-              className={`history-row ${thread.id === activeId ? "active" : ""}`}
-              key={thread.id}
-            >
-              <button
-                className="history-item"
-                onClick={() => onOpen(thread.id)}
-                title={thread.title}
-              >
-                <span aria-hidden="true">◦</span>
-                <span className="history-label">{thread.title}</span>
-              </button>
-              {!collapsed && (
-                <button
-                  className="rename-thread"
-                  type="button"
-                  aria-label={`Rename ${thread.title}`}
-                  title="Rename chat"
-                  onClick={() => onRename(thread)}
-                >
-                  ···
-                </button>
-              )}
-            </div>
-          ))}
-          {!filteredThreads.length && (
-            <p className="history-empty">No matching chats</p>
-          )}
+        <nav className="sidebar-sections" aria-label="Sidebar sections">
+          <button
+            type="button"
+            aria-pressed={section === "chats"}
+            className={section === "chats" ? "selected" : ""}
+            onClick={() => onSectionChange("chats")}
+            title="Recent chats"
+          >
+            <span aria-hidden="true">◷</span>
+            <span className="sidebar-section-label">Recent Chats</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={section === "gallery"}
+            className={section === "gallery" ? "selected" : ""}
+            onClick={() => onSectionChange("gallery")}
+            title="Generated image gallery"
+          >
+            <span aria-hidden="true">▦</span>
+            <span className="sidebar-section-label">Gallery</span>
+            <span className="sidebar-section-count">
+              {generatedImages.length}
+            </span>
+          </button>
         </nav>
+        {section === "chats" ? (
+          <>
+            <div className="history-heading">
+              <p className="history-title">Recent Chats</p>
+              <span>{filteredThreads.length}</span>
+            </div>
+            {!collapsed && (
+              <div className="thread-filters">
+                <input
+                  aria-label="Search chats"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search chats"
+                />
+                <select
+                  aria-label="Filter chats by workspace"
+                  value={industry}
+                  onChange={(event) => setIndustry(event.target.value)}
+                >
+                  <option value="all">All workspaces</option>
+                  {[
+                    ...new Set(
+                      threads.map((thread) => thread.industry).filter(Boolean),
+                    ),
+                  ].map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <nav className="history-list" aria-label="Recent chats">
+              {filteredThreads.map((thread) => (
+                <div
+                  className={`history-row ${thread.id === activeId ? "active" : ""}`}
+                  key={thread.id}
+                >
+                  <button
+                    className="history-item"
+                    onClick={() => onOpen(thread.id)}
+                    title={thread.title}
+                  >
+                    <span aria-hidden="true">◦</span>
+                    <span className="history-label">{thread.title}</span>
+                  </button>
+                  {!collapsed && (
+                    <button
+                      className="rename-thread"
+                      type="button"
+                      aria-label={`Rename ${thread.title}`}
+                      title="Rename chat"
+                      onClick={() => onRename(thread)}
+                    >
+                      ···
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!filteredThreads.length && (
+                <p className="history-empty">No matching chats</p>
+              )}
+            </nav>
+          </>
+        ) : (
+          <section
+            className="sidebar-gallery"
+            aria-label="Generated image gallery"
+          >
+            <div className="history-heading">
+              <p className="history-title">Generated Images</p>
+              <span>{generatedImages.length}</span>
+            </div>
+            {generatedImages.length ? (
+              <div className="sidebar-gallery-grid">
+                {generatedImages.map((image) => (
+                  <button
+                    type="button"
+                    key={image.id}
+                    aria-label={`View ${image.name}`}
+                    title={image.name}
+                    onClick={onImageClick}
+                  >
+                    <img src={image.data} alt="" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="history-empty">Enhanced images appear here.</p>
+            )}
+          </section>
+        )}
         <div className="sidebar-spacer" />
         <div className="profile">
           <span className="profile-avatar" aria-hidden="true">

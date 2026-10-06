@@ -140,25 +140,6 @@ export default function Composer({
   }
 
   async function addFiles(fileList) {
-    async function enhanceImage(file) {
-      setEnhancingName(file.name);
-      setFileError("");
-      try {
-        const response = await apiRequest("/api/images/enhance", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: file, style: enhancementStyle }),
-        });
-        const result = await response.json();
-        if (!response.ok)
-          throw new Error(result.error || "Could not enhance image");
-        onImageEnhanced?.(result.image, result.style);
-      } catch (error) {
-        setFileError(error.message);
-      } finally {
-        setEnhancingName("");
-      }
-    }
     const next = [...files];
     setFileError("");
     for (const file of Array.from(fileList)) {
@@ -192,6 +173,26 @@ export default function Composer({
     }
     setFiles(next);
     if (fileInput.current) fileInput.current.value = "";
+  }
+
+  async function enhanceImage(file) {
+    setEnhancingName(file.name);
+    setFileError("");
+    try {
+      const response = await apiRequest("/api/images/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: file, style: enhancementStyle }),
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || "Could not enhance image");
+      onImageEnhanced?.(result.image, result.style);
+    } catch (error) {
+      setFileError(error.message);
+    } finally {
+      setEnhancingName("");
+    }
   }
 
   async function submit(event) {

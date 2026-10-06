@@ -3,6 +3,10 @@ import AuthView from "./components/AuthView.jsx";
 import Composer from "./components/Composer.jsx";
 import MessageList from "./components/MessageList.jsx";
 import Sidebar from "./components/Sidebar.jsx";
+import {
+  listGeneratedImages,
+  saveGeneratedImage,
+} from "./imageGalleryStore.js";
 
 async function parseResponse(response) {
   const result = response.status === 204 ? {} : await response.json();
@@ -35,11 +39,27 @@ export default function App() {
   const [replyTo, setReplyTo] = useState(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [generatedImages, setGeneratedImages] = useState([]);
+  const [sidebarSection, setSidebarSection] = useState("chats");
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [largeText, setLargeText] = useState(
+    () => localStorage.getItem("moonlit-large-text") === "true",
+  );
   const refreshInFlight = useRef(null);
 
   const acceptSession = useCallback((session) => {
     setToken(session.token);
     setUser(session.user);
+    try {
+      setNotifications(
+        JSON.parse(
+          localStorage.getItem(`moonlit-notifications-${session.user.id}`) ||
+            "[]",
+        ),
+      );
+    } catch {
+      setNotifications([]);
+    }
   }, []);
 
   const refreshSession = useCallback(async () => {
@@ -109,6 +129,19 @@ export default function App() {
   }, [apiRequest, user]);
 
   useEffect(() => {
+    if (!user) return undefined;
+    let active = true;
+    listGeneratedImages(user.id)
+      .then((images) => {
+        if (active) setGeneratedImages(images);
+      })
+      .catch((error) => setStatus(error.message));
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("moonlit-theme", theme);
   }, [theme]);
@@ -120,6 +153,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("moonlit-pins", JSON.stringify(pinnedIds));
   }, [pinnedIds]);
+
+  useEffect(() => {
+    localStorage.setItem("moonlit-large-text", String(largeText));
+  }, [largeText]);
+
+  useEffect(() => {
+    if (!user) return;
+    localStorage.setItem(
+      `moonlit-notifications-${user.id}`,
+      JSON.stringify(notifications),
+    );
+  }, [notifications, user]);
 
   useEffect(() => {
     function onShortcut(event) {
@@ -147,7 +192,23 @@ export default function App() {
     setThreads([]);
     setGeneratedImages([]);
     setPinnedIds([]);
+    setNotifications([]);
     setStatus("Signed out.");
+  }
+
+  function addNotification(title, detail) {
+    setNotifications((current) =>
+      [
+        {
+          id: crypto.randomUUID(),
+          title,
+          detail,
+          createdAt: new Date().toISOString(),
+          read: false,
+        },
+        ...current,
+      ].slice(0, 20),
+    );
   }
 
   async function sendMessage(message, attachments, action = "", reply = null) {
@@ -227,6 +288,7 @@ export default function App() {
       setActiveId(savedThread.id);
       setMessages(savedThread.messages);
       setStatus(`Answered with ${result.modelVersion}.`);
+      addNotification("Assistant reply ready", userText.slice(0, 120));
     } catch (error) {
       setStatus(error.message);
     } finally {
@@ -320,7 +382,7 @@ export default function App() {
 
   return (
     <main
-      className={`app-shell min-h-dvh bg-moon-paper text-moon-ink ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
+      className={`app-shell min-h-dvh bg-moon-paper text-moon-ink ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${largeText ? "large-text" : ""}`}
     >
       <Sidebar
         user={user}
@@ -338,6 +400,10 @@ export default function App() {
         apiRequest={apiRequest}
         onRename={renameThread}
         collapsed={sidebarCollapsed}
+        section={sidebarSection}
+        onSectionChange={setSidebarSection}
+        generatedImages={generatedImages}
+        onImageClick={() => setGalleryOpen(true)}
         onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -379,11 +445,82 @@ export default function App() {
             {theme === "light" ? "◐" : "☼"}
           </button>
           <button
+            className="icon-control text-size-toggle"
+            type="button"
+            aria-label={
+              largeText ? "Use standard text size" : "Use larger text"
+            }
+            aria-pressed={largeText}
+            title="Toggle larger text"
+            onClick={() => setLargeText((value) => !value)}
+          >
+            Aa
+          </button>
+          <div className="notification-root">
+            <button
+              className="icon-control notification-toggle"
+              type="button"
+              aria-label={`Notifications, ${notifications.filter((item) => !item.read).length} unread`}
+              aria-expanded={notificationsOpen}
+              aria-controls="notification-panel"
+              onClick={() => setNotificationsOpen((value) => !value)}
+            >
+              !
+              {notifications.some((item) => !item.read) && (
+                <span className="notification-count">
+                  {notifications.filter((item) => !item.read).length}
+                </span>
+              )}
+            </button>
+            {notificationsOpen && (
+              <section
+                className="notification-panel"
+                id="notification-panel"
+                aria-label="Notifications"
+              >
+                <div className="notification-heading">
+                  <strong>Notifications</strong>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNotifications((current) =>
+                        current.map((item) => ({ ...item, read: true })),
+                      )
+                    }
+                  >
+                    Mark all read
+                  </button>
+                </div>
+                {notifications.length ? (
+                  <ul>
+                    {notifications.map((item) => (
+                      <li
+                        className={item.read ? "read" : "unread"}
+                        key={item.id}
+                      >
+                        <strong>{item.title}</strong>
+                        <span>{item.detail}</span>
+                        <time dateTime={item.createdAt}>
+                          {new Date(item.createdAt).toLocaleString()}
+                        </time>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted">You’re all caught up.</p>
+                )}
+              </section>
+            )}
+          </div>
+          <button
             className="icon-control gallery-toggle"
             type="button"
             aria-label={`Open image gallery, ${galleryImages.length} images`}
             title="Image gallery"
-            onClick={() => setGalleryOpen(true)}
+            onClick={() => {
+              setSidebarSection("gallery");
+              setGalleryOpen(true);
+            }}
           >
             ▦ <span>{galleryImages.length}</span>
           </button>
@@ -419,6 +556,12 @@ export default function App() {
                 attachments: [galleryImage],
               };
               setGeneratedImages((current) => [...current, galleryImage]);
+              void saveGeneratedImage(user.id, galleryImage).catch((error) =>
+                setStatus(
+                  `Image preview created, but could not save it locally: ${error.message}`,
+                ),
+              );
+              addNotification("Image enhancement complete", galleryImage.name);
               setMessages((current) => [...current, enhancedMessage]);
               setThreads((current) =>
                 current.map((thread) =>
