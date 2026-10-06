@@ -25,6 +25,21 @@ function createChatRouter(industry) {
         });
         return res.json(result);
       } catch (error) {
+        if (error.code === "AI_PROVIDER_ERROR") {
+          const providerStatus = error.providerStatus;
+          const errorMessage =
+            providerStatus === 401 || providerStatus === 403
+              ? "AI provider authentication failed. Check the AI_API_KEY and AI_API_URL settings."
+              : providerStatus === 429
+                ? "AI provider rate limit reached. Please wait and try again."
+                : "AI provider is temporarily unavailable. Please try again shortly.";
+          return res.status(502).json({ error: errorMessage });
+        }
+        if (error.code === "AI_PROVIDER_EMPTY_RESPONSE") {
+          return res.status(502).json({
+            error: "AI provider returned an empty response. Please try again.",
+          });
+        }
         if (
           /^Weather API (?:request failed|returned an invalid)/i.test(
             error.message,
@@ -85,6 +100,21 @@ function createPlainChatRouter() {
         // Keep this compatibility endpoint's successful response as plain text.
         return res.type("text/plain; charset=utf-8").send(result.reply);
       } catch (error) {
+        if (error.code === "AI_PROVIDER_ERROR") {
+          const providerStatus = error.providerStatus;
+          const errorMessage =
+            providerStatus === 401 || providerStatus === 403
+              ? "AI provider authentication failed. Check the AI_API_KEY and AI_API_URL settings."
+              : providerStatus === 429
+                ? "AI provider rate limit reached. Please wait and try again."
+                : "AI provider is temporarily unavailable. Please try again shortly.";
+          return res.status(502).json({ error: errorMessage });
+        }
+        if (error.code === "AI_PROVIDER_EMPTY_RESPONSE") {
+          return res.status(502).json({
+            error: "AI provider returned an empty response. Please try again.",
+          });
+        }
         if (
           /^Weather API (?:request failed|returned an invalid)/i.test(
             error.message,

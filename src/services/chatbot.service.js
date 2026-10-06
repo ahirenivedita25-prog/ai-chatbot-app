@@ -94,25 +94,39 @@ async function generateReply({
 
   const userContent = createUserContent(message, attachments);
 
-  const response = await transport(process.env.AI_API_URL || defaultApiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const requestUrl = process.env.AI_API_URL || defaultApiUrl;
+  let response;
+  try {
+    response = await transport(requestUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: process.env.AI_MODEL || "gpt-4o-mini",
+        temperature: 0.2,
+        max_tokens: 700,
+        messages: [
+          {
+            role: "system",
+            content: `You are ${assistantName}, a helpful multi-source assistant serving the ${industry} desk. Help with ${industryGuidance[industry]}, but answer any question the user asks. For every substantive answer, start with a short section labeled "Summary:" and follow it with "Details:" containing the useful explanation, evidence, or next steps. Keep both sections concise; if the answer is a simple clarification, keep the details to one sentence. First infer the user's intent and context, then choose the clearest format: bullets for grouped points, numbered steps for procedures, aligned plain-text tables for comparisons, and compact text bar charts for numerical data. When a user asks for schools or other multiple organizations, return up to five distinct, relevant results rather than stopping at the first match, but only when the provided context, attachments, or reliable knowledge support those candidates. For each result, use the labels Name, Location, Contact, and Description; mark unavailable details as "Not provided" instead of guessing. Do not imply that results are current, ranked, nearby, or retrieved from a live directory unless a connected source establishes that. If fewer than five candidates can be supported, say so in the summary and list only those candidates. For other location-based requests, present source-backed results as a structured list with a distinct icon per result when the source provides enough detail. Use only information available in the user's message, attachments, or your reliable general knowledge; do not claim to have browsed or verified external sources. Identify uncertainty and attribute details to supplied sources when useful. Format for a plain-text chat bubble: do not return JSON, Markdown tables, or code fences; use readable labels and spacing, and use simple text bars (for example, ███) rather than graphical charts. Keep answers clear, useful, and professional without defaulting to long paragraphs. Never invent private account, payment, medical, legal, location, or appointment details; explain what information is missing or direct the user to staff when an answer requires private or live data.`,
+          },
+          { role: "user", content: userContent },
+        ],
+      }),
+    });
+  } catch (cause) {
+    console.error("AI provider request failed", {
+      status: null,
+      message: "network_error",
       model: process.env.AI_MODEL || "gpt-4o-mini",
-      temperature: 0.2,
-      max_tokens: 700,
-      messages: [
-        {
-          role: "system",
-          content: `You are ${assistantName}, a helpful multi-source assistant serving the ${industry} desk. Help with ${industryGuidance[industry]}, but answer any question the user asks. For every substantive answer, start with a short section labeled "Summary:" and follow it with "Details:" containing the useful explanation, evidence, or next steps. Keep both sections concise; if the answer is a simple clarification, keep the details to one sentence. First infer the user's intent and context, then choose the clearest format: bullets for grouped points, numbered steps for procedures, aligned plain-text tables for comparisons, and compact text bar charts for numerical data. When a user asks for schools or other multiple organizations, return up to five distinct, relevant results rather than stopping at the first match, but only when the provided context, attachments, or reliable knowledge support those candidates. For each result, use the labels Name, Location, Contact, and Description; mark unavailable details as "Not provided" instead of guessing. Do not imply that results are current, ranked, nearby, or retrieved from a live directory unless a connected source establishes that. If fewer than five candidates can be supported, say so in the summary and list only those candidates. For other location-based requests, present source-backed results as a structured list with a distinct icon per result when the source provides enough detail. Use only information available in the user's message, attachments, or your reliable general knowledge; do not claim to have browsed or verified external sources. Identify uncertainty and attribute details to supplied sources when useful. Format for a plain-text chat bubble: do not return JSON, Markdown tables, or code fences; use readable labels and spacing, and use simple text bars (for example, ███) rather than graphical charts. Keep answers clear, useful, and professional without defaulting to long paragraphs. Never invent private account, payment, medical, legal, location, or appointment details; explain what information is missing or direct the user to staff when an answer requires private or live data.`,
-        },
-        { role: "user", content: userContent },
-      ],
-    }),
-  });
+      url: requestUrl,
+    });
+    const error = new Error("AI provider is unreachable", { cause });
+    error.code = "AI_PROVIDER_ERROR";
+    throw error;
+  }
 
   if (!response.ok) {
     let providerMessage = "";
@@ -128,14 +142,21 @@ async function generateReply({
       model: process.env.AI_MODEL || "gpt-4o-mini",
       url: process.env.AI_API_URL || defaultApiUrl,
     });
-    throw new Error(
+    const error = new Error(
       `AI provider request failed with status ${response.status}`,
     );
+    error.code = "AI_PROVIDER_ERROR";
+    error.providerStatus = response.status;
+    throw error;
   }
 
   const body = await response.json();
   const reply = body.choices?.[0]?.message?.content?.trim();
-  if (!reply) throw new Error("AI provider returned an empty response");
+  if (!reply) {
+    const error = new Error("AI provider returned an empty response");
+    error.code = "AI_PROVIDER_EMPTY_RESPONSE";
+    throw error;
+  }
   return plainTextReply(reply);
 }
 
