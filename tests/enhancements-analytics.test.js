@@ -39,6 +39,7 @@ test("admin analytics returns aggregate-only usage and feedback", async () => {
     assert.equal(typeof result.conversations, "number");
     assert.equal(typeof result.failures, "number");
     assert.equal(result.usageByDay.length, 7);
+    assert.deepEqual(result.topIntents, []);
     assert.equal(typeof result.performance.samples, "number");
     assert.equal(Object.hasOwn(result, "message"), false);
     assert.equal(Object.hasOwn(result, "userId"), false);

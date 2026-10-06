@@ -865,6 +865,27 @@ h1 {
 .analytics-day small {
   font-size: 9px;
 }
+.popular-intents {
+  display: grid;
+  gap: 0;
+  padding: 0 !important;
+  list-style: none;
+}
+.popular-intents li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 4px;
+  border-bottom: 1px solid #e6ece8;
+  color: #64736b;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.popular-intents strong {
+  color: #30443a;
+  font-variant-numeric: tabular-nums;
+}
 .quick-actions {
   display: flex;
   flex-wrap: wrap;

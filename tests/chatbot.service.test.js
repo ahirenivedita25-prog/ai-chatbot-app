@@ -47,6 +47,14 @@ test("chatbot service sends industry context to the AI provider", async () => {
     assert.match(payload.messages[0].content, /aligned plain-text tables/i);
     assert.match(payload.messages[0].content, /text bar charts/i);
     assert.match(payload.messages[0].content, /location-based requests/i);
+    assert.match(payload.messages[0].content, /Summary:/);
+    assert.match(payload.messages[0].content, /Details:/);
+    assert.match(payload.messages[0].content, /up to five distinct/i);
+    assert.match(
+      payload.messages[0].content,
+      /Name, Location, Contact, and Description/,
+    );
+    assert.match(payload.messages[0].content, /instead of guessing/i);
     assert.match(payload.messages[0].content, /do not claim to have browsed/i);
     assert.equal(
       payload.messages[1].content,

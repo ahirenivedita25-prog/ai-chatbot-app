@@ -317,6 +317,18 @@ export default function AdminMenu({ onLogout, apiRequest }) {
                       );
                     })}
                   </div>
+                  <h3>Most asked topics</h3>
+                  <ul className="popular-intents">
+                    {analytics.topIntents.map((item) => (
+                      <li key={item.intent}>
+                        <span>{item.intent.replaceAll("_", " ")}</span>
+                        <strong>{item.count}</strong>
+                      </li>
+                    ))}
+                    {!analytics.topIntents.length && (
+                      <li>No topics recorded.</li>
+                    )}
+                  </ul>
                   <p className="analytics-note">
                     {analytics.conversations} total chats · {analytics.failures}{" "}
                     recorded failures. Latency is process-local and resets when

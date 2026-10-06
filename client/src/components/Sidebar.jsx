@@ -136,7 +136,7 @@ export default function Sidebar({
           )}
         </div>
         <div className="history-heading">
-          <p className="history-title">Chat history</p>
+          <p className="history-title">Recent Chats</p>
           <span>{filteredThreads.length}</span>
         </div>
         {!collapsed && (
@@ -165,7 +165,7 @@ export default function Sidebar({
             </select>
           </div>
         )}
-        <nav className="history-list" aria-label="Chat history">
+        <nav className="history-list" aria-label="Recent chats">
           {filteredThreads.map((thread) => (
             <div
               className={`history-row ${thread.id === activeId ? "active" : ""}`}

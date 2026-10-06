@@ -205,10 +205,11 @@ router.get("/analytics", async (_req, res, next) => {
   try {
     let conversations;
     let conversationTotals;
+    let popularIntents;
     let feedback;
     let failures;
     if (pool) {
-      [conversations, conversationTotals, feedback, failures] =
+      [conversations, conversationTotals, popularIntents, feedback, failures] =
         await Promise.all([
           pool.query(
             `SELECT COUNT(*)::int AS total, created_at::date::text AS day
@@ -220,6 +221,13 @@ router.get("/analytics", async (_req, res, next) => {
             `SELECT COUNT(*)::int AS total,
              COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::int AS last_week
            FROM conversations`,
+          ),
+          pool.query(
+            `SELECT intent, COUNT(*)::int AS count
+             FROM conversations
+             GROUP BY intent
+             ORDER BY count DESC, intent ASC
+             LIMIT 5`,
           ),
           pool.query(
             `SELECT rating, COUNT(*)::int AS count
@@ -257,6 +265,20 @@ router.get("/analytics", async (_req, res, next) => {
           counts[item.rating] = (counts[item.rating] || 0) + 1;
           return counts;
         }, {});
+    const topIntents = pool
+      ? popularIntents.rows.map((row) => ({
+          intent: row.intent,
+          count: row.count,
+        }))
+      : Object.entries(
+          conversations.reduce((counts, item) => {
+            counts[item.intent] = (counts[item.intent] || 0) + 1;
+            return counts;
+          }, {}),
+        )
+          .map(([intent, count]) => ({ intent, count }))
+          .sort((first, second) => second.count - first.count)
+          .slice(0, 5);
     const conversationTotal = pool
       ? Number(conversationTotals.rows[0]?.total || 0)
       : conversations.length;
@@ -278,6 +300,7 @@ router.get("/analytics", async (_req, res, next) => {
       failures: failureTotal,
       failuresLastWeek: weekFailures,
       usageByDay,
+      topIntents,
       performance: analyticsService.performanceSummary(),
     });
   } catch (error) {
