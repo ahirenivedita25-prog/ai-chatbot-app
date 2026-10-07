@@ -79,6 +79,19 @@ test("provider network failures return a retryable diagnostic 502", async () => 
       const result = await response.json();
       assert.equal(response.status, 502);
       assert.match(result.error, /temporarily unavailable/);
+      assert.ok(result.id);
+      assert.ok(result.threadId);
+      const historyResponse = await fetch(`${url}/api/conversations/threads`, {
+        headers: { authorization: `Bearer ${authToken}` },
+      });
+      const history = await historyResponse.json();
+      assert.ok(
+        history.threads.some((thread) =>
+          thread.messages.some(
+            (message) => message.text === "Share the addition code",
+          ),
+        ),
+      );
     });
   } finally {
     global.fetch = originalFetch;

@@ -161,3 +161,34 @@ test("users can group, search, and label exchanges as persistent threads", async
     false,
   );
 });
+
+test("thread search checks older exchanges outside the recent history window", async () => {
+  const owner = userModel.create({
+    email: "old-thread-search@test.local",
+    passwordHash: "hash",
+  });
+  await conversationModel.create({
+    userId: owner.id,
+    industry: "school",
+    intent: "general_support",
+    modelVersion: "moonlit-brain-v1",
+    message: "Find the archived astronomy club note",
+    reply: "The astronomy club meets on Thursday.",
+  });
+  await conversationModel.create({
+    userId: owner.id,
+    industry: "school",
+    intent: "general_support",
+    modelVersion: "moonlit-brain-v1",
+    message: "What time does the library close?",
+    reply: "The library closes at five.",
+  });
+
+  const results = await conversationModel.listThreadsForUser(owner.id, {
+    limit: 1,
+    search: "astronomy club",
+  });
+
+  assert.equal(results.length, 1);
+  assert.match(results[0].title, /astronomy club/i);
+});

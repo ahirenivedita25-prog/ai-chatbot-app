@@ -17,6 +17,7 @@ export default function Composer({
   replyTo,
   onClearReply,
   onImageEnhanced,
+  onCreateServiceRequest,
 }) {
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState([]);
@@ -37,6 +38,11 @@ export default function Composer({
   const [appliedCloudQuery, setAppliedCloudQuery] = useState("");
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudError, setCloudError] = useState("");
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestCategory, setRequestCategory] = useState("appointment");
+  const [requestDetails, setRequestDetails] = useState("");
+  const [requestBusy, setRequestBusy] = useState(false);
+  const [requestError, setRequestError] = useState("");
   const fileInput = useRef(null);
   const recognition = useRef(null);
 
@@ -201,6 +207,21 @@ export default function Composer({
     await onSend(message.trim(), files, "", replyTo);
     setMessage("");
     setFiles([]);
+  }
+
+  async function submitServiceRequest(event) {
+    event.preventDefault();
+    setRequestBusy(true);
+    setRequestError("");
+    try {
+      await onCreateServiceRequest(requestCategory, requestDetails.trim());
+      setRequestDetails("");
+      setRequestOpen(false);
+    } catch (error) {
+      setRequestError(error.message);
+    } finally {
+      setRequestBusy(false);
+    }
   }
 
   async function runQuickAction(action) {
@@ -424,12 +445,93 @@ export default function Composer({
         >
           Import from OneDrive
         </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setRequestError("");
+            setRequestOpen(true);
+          }}
+        >
+          Submit service request
+        </button>
       </div>
       <p className="composer-caption">
         Attachments are malware-scanned and sent to the configured AI provider.
         Moonlit stores chat text, not uploaded file contents; provider retention
         follows its privacy policy.
       </p>
+      {requestOpen && (
+        <div
+          className="dialog-backdrop"
+          role="presentation"
+          onClick={() => setRequestOpen(false)}
+        >
+          <section
+            className="dialog service-request-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="service-request-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="dialog-header">
+              <h2 id="service-request-title">Submit a service request</h2>
+              <button
+                className="icon-control"
+                type="button"
+                aria-label="Close request form"
+                onClick={() => setRequestOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <form
+              className="service-request-form"
+              onSubmit={submitServiceRequest}
+            >
+              <label htmlFor="service-request-category">Request type</label>
+              <select
+                id="service-request-category"
+                value={requestCategory}
+                onChange={(event) => setRequestCategory(event.target.value)}
+              >
+                <option value="hotel">Hotel booking inquiry</option>
+                <option value="appointment">Appointment</option>
+                <option value="shopping">Shopping or order inquiry</option>
+                <option value="payment">Payment assistance</option>
+                <option value="banking">Banking support</option>
+              </select>
+              <label htmlFor="service-request-details">What do you need?</label>
+              <textarea
+                id="service-request-details"
+                value={requestDetails}
+                onChange={(event) => setRequestDetails(event.target.value)}
+                rows={5}
+                maxLength={2000}
+                required
+              />
+              <p className="service-request-disclaimer">
+                This sends a request to staff for follow-up. It does not make a
+                booking, place an order, charge a payment, or perform a bank
+                action. Never include passwords, PINs, verification codes, card
+                numbers, or bank account numbers.
+              </p>
+              {requestError && (
+                <p className="error-text" role="alert">
+                  {requestError}
+                </p>
+              )}
+              <button
+                className="button-primary"
+                type="submit"
+                disabled={requestBusy || !requestDetails.trim()}
+              >
+                {requestBusy ? "Submitting…" : "Send request"}
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
       {cloudProvider && (
         <div
           className="dialog-backdrop"

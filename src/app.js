@@ -3,6 +3,7 @@ const express = require("express");
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const conversationRoutes = require("./routes/conversations");
+const serviceRequestRoutes = require("./routes/service-requests");
 const integrationRoutes = require("./routes/integrations");
 const { createChatRouter, createPlainChatRouter } = require("./routes/chat");
 const {
@@ -148,6 +149,13 @@ app.use(
   userLimiter,
   recordUserActivity,
   conversationRoutes,
+);
+app.use(
+  "/api/service-requests",
+  requireAuth,
+  userLimiter,
+  recordUserActivity,
+  serviceRequestRoutes,
 );
 app.use("/api/integrations", integrationRoutes);
 const imageRoutes = require("./routes/images");

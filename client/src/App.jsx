@@ -10,7 +10,11 @@ import {
 
 async function parseResponse(response) {
   const result = response.status === 204 ? {} : await response.json();
-  if (!response.ok) throw new Error(result.error || "Request failed");
+  if (!response.ok) {
+    const error = new Error(result.error || "Request failed");
+    Object.assign(error, result);
+    throw error;
+  }
   return result;
 }
 
@@ -39,6 +43,7 @@ export default function App() {
   const [replyTo, setReplyTo] = useState(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [generatedImages, setGeneratedImages] = useState([]);
+  const [serviceRequests, setServiceRequests] = useState([]);
   const [sidebarSection, setSidebarSection] = useState("chats");
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -142,6 +147,20 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    if (!user) return undefined;
+    let active = true;
+    apiRequest("/api/service-requests")
+      .then(parseResponse)
+      .then(({ requests }) => {
+        if (active) setServiceRequests(requests);
+      })
+      .catch((error) => setStatus(error.message));
+    return () => {
+      active = false;
+    };
+  }, [apiRequest, user]);
+
+  useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("moonlit-theme", theme);
   }, [theme]);
@@ -191,6 +210,7 @@ export default function App() {
     setMessages([]);
     setThreads([]);
     setGeneratedImages([]);
+    setServiceRequests([]);
     setPinnedIds([]);
     setNotifications([]);
     setStatus("Signed out.");
@@ -208,6 +228,35 @@ export default function App() {
         },
         ...current,
       ].slice(0, 20),
+    );
+  }
+
+  async function createServiceRequest(category, details) {
+    const result = await parseResponse(
+      await apiRequest("/api/service-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category, details }),
+      }),
+    );
+    setServiceRequests((current) => [result.request, ...current]);
+    setSidebarSection("requests");
+    setStatus("Request received for staff follow-up. No transaction was made.");
+  }
+
+  async function updateServiceRequestStatus(requestId, nextStatus) {
+    const result = await parseResponse(
+      await apiRequest(
+        `/api/service-requests/${encodeURIComponent(requestId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: nextStatus }),
+        },
+      ),
+    );
+    setServiceRequests((current) =>
+      current.map((item) => (item.id === requestId ? result.request : item)),
     );
   }
 
@@ -290,6 +339,43 @@ export default function App() {
       setStatus(`Answered with ${result.modelVersion}.`);
       addNotification("Assistant reply ready", userText.slice(0, 120));
     } catch (error) {
+      if (error.id && error.threadId) {
+        const savedThread = {
+          id: String(error.threadId),
+          title:
+            existingThread?.label ||
+            (existingThread?.messages?.length
+              ? existingThread.title
+              : userText),
+          label: existingThread?.label || "",
+          industry: existingThread?.industry || "school",
+          messages: [
+            ...(existingThread?.messages || []),
+            ...localImageMessages,
+            {
+              id: `${error.id}-question`,
+              role: "user",
+              text: userText,
+              replyTo: reply,
+              attachments: attachments.filter(
+                (file) => file.type?.startsWith("image/") && file.data,
+              ),
+            },
+            {
+              id: `${error.id}-answer`,
+              role: "assistant",
+              text: "Moonlit could not complete this reply. Please try again.",
+              conversationId: String(error.id),
+            },
+          ],
+        };
+        setThreads((current) => [
+          savedThread,
+          ...current.filter((thread) => thread.id !== activeThreadId),
+        ]);
+        setActiveId(savedThread.id);
+        setMessages(savedThread.messages);
+      }
       setStatus(error.message);
     } finally {
       setBusy(false);
@@ -403,6 +489,8 @@ export default function App() {
         section={sidebarSection}
         onSectionChange={setSidebarSection}
         generatedImages={generatedImages}
+        serviceRequests={serviceRequests}
+        onRequestStatusChange={updateServiceRequestStatus}
         onImageClick={() => setGalleryOpen(true)}
         onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
         open={sidebarOpen}
@@ -545,6 +633,7 @@ export default function App() {
             onSend={sendMessage}
             busy={busy}
             apiRequest={apiRequest}
+            onCreateServiceRequest={createServiceRequest}
             replyTo={replyTo}
             onClearReply={() => setReplyTo(null)}
             onImageEnhanced={(image, style) => {

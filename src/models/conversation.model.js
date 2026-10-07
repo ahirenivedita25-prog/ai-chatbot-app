@@ -116,13 +116,22 @@ async function list({ limit = 100 } = {}) {
 
 async function listForUser(userId, { limit = 100 } = {}) {
   if (pool) {
-    const result = await pool.query(
-      `SELECT id, user_id, industry, intent, model_version, ciphertext, iv,
-              auth_tag, created_at, thread_id, label
-       FROM conversations WHERE user_id = $1
-       ORDER BY created_at DESC LIMIT $2`,
-      [userId, limit],
-    );
+    const result =
+      limit === null
+        ? await pool.query(
+            `SELECT id, user_id, industry, intent, model_version, ciphertext, iv,
+                    auth_tag, created_at, thread_id, label
+             FROM conversations WHERE user_id = $1
+             ORDER BY created_at DESC`,
+            [userId],
+          )
+        : await pool.query(
+            `SELECT id, user_id, industry, intent, model_version, ciphertext, iv,
+                    auth_tag, created_at, thread_id, label
+             FROM conversations WHERE user_id = $1
+             ORDER BY created_at DESC LIMIT $2`,
+            [userId, limit],
+          );
     return result.rows.map((row) => ({
       id: row.id,
       userId: row.user_id,
@@ -140,9 +149,8 @@ async function listForUser(userId, { limit = 100 } = {}) {
     }));
   }
 
-  return records
-    .filter((record) => record.userId === userId)
-    .slice(-limit)
+  const userRecords = records.filter((record) => record.userId === userId);
+  return (limit === null ? userRecords : userRecords.slice(-limit))
     .reverse()
     .map((record) => ({
       id: record.id,
@@ -161,7 +169,9 @@ async function listThreadsForUser(
   userId,
   { limit = 500, search = "", industry = "" } = {},
 ) {
-  const exchanges = await listForUser(userId, { limit });
+  const exchanges = await listForUser(userId, {
+    limit: search.trim() ? null : limit * 2,
+  });
   const byThread = new Map();
   for (const exchange of [...exchanges].reverse()) {
     if (industry && exchange.industry !== industry) continue;
@@ -204,7 +214,8 @@ async function listThreadsForUser(
     )
     .sort(
       (first, second) => new Date(second.createdAt) - new Date(first.createdAt),
-    );
+    )
+    .slice(0, limit);
 }
 
 async function setThreadLabel(userId, threadId, label) {

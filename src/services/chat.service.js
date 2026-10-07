@@ -70,6 +70,20 @@ async function answerMessage({
     } catch (logError) {
       console.error("Failed to record inference failure", logError);
     }
+    try {
+      error.savedConversation = await conversationModel.create({
+        userId,
+        industry,
+        intent: classifyIntent(safeMessage),
+        modelVersion: version,
+        message: safeMessage,
+        reply: "Moonlit could not complete this reply. Please try again.",
+        threadId,
+        label,
+      });
+    } catch (saveError) {
+      console.error("Failed to save chat after inference failure", saveError);
+    }
     throw error;
   }
   const intent = classifyIntent(

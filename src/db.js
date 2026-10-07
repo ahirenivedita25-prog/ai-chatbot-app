@@ -49,6 +49,21 @@ async function initializeDatabase() {
       ON conversations(thread_id, created_at ASC);
     CREATE INDEX IF NOT EXISTS conversations_user_created_idx
       ON conversations(user_id, created_at DESC);
+    CREATE TABLE IF NOT EXISTS service_requests (
+      id BIGSERIAL PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      category TEXT NOT NULL CHECK (category IN ('hotel', 'appointment', 'shopping', 'payment', 'banking')),
+      status TEXT NOT NULL DEFAULT 'received' CHECK (status IN ('received', 'in_review', 'closed')),
+      ciphertext TEXT NOT NULL,
+      iv TEXT NOT NULL,
+      auth_tag TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS service_requests_user_created_idx
+      ON service_requests(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS service_requests_status_created_idx
+      ON service_requests(status, created_at DESC);
     CREATE TABLE IF NOT EXISTS admin_audit (
       id BIGSERIAL PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,

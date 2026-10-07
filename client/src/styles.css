@@ -206,7 +206,7 @@ h1 {
 }
 .sidebar-sections {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   margin-top: 12px;
   padding: 3px;
@@ -267,6 +267,54 @@ h1 {
   border: 1px solid #dce7df;
   border-radius: 5px;
   background: #f4f8f5;
+}
+.sidebar-requests {
+  min-height: 0;
+  overflow-y: auto;
+}
+.service-request-item {
+  display: grid;
+  gap: 7px;
+  padding: 10px 3px;
+  border-bottom: 1px solid #e6ece8;
+  color: #53645c;
+  font-size: 11px;
+}
+.service-request-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #30443a;
+  text-transform: capitalize;
+}
+.service-request-meta time,
+.service-request-item a {
+  color: #87938d;
+  font-size: 9px;
+}
+.service-request-item a {
+  overflow-wrap: anywhere;
+}
+.service-request-item p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.service-request-item select {
+  min-height: 29px;
+  padding: 0 7px;
+  border: 1px solid #dce7df;
+  border-radius: 5px;
+  background: #fff;
+  color: #52615b;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+.service-request-status {
+  color: #22675b;
+  font-size: 10px;
+  text-transform: capitalize;
 }
 .sidebar-gallery-grid img {
   display: block;
@@ -891,15 +939,22 @@ h1 {
   color: #fff;
 }
 .send-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: auto;
   min-width: 74px;
   gap: 8px;
   padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
 }
 .send-button strong {
+  display: block;
   color: #b3e9d0;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 .composer-actions .listening {
   background: #ffebe7;
@@ -1095,6 +1150,33 @@ h1 {
 }
 .invite-dialog .auth-form {
   margin-top: 18px;
+}
+.service-request-form {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  color: #40554a;
+  font-size: 12px;
+}
+.service-request-form select,
+.service-request-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dce7df;
+  border-radius: 6px;
+  background: #fff;
+  color: #30443a;
+  font: inherit;
+}
+.service-request-form textarea {
+  resize: vertical;
+}
+.service-request-disclaimer {
+  margin: 0;
+  color: #788782;
+  font-size: 10px;
+  line-height: 1.5;
 }
 .invite-result {
   display: grid;

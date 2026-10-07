@@ -14,6 +14,8 @@ export default function Sidebar({
   section,
   onSectionChange,
   generatedImages,
+  serviceRequests,
+  onRequestStatusChange,
   onImageClick,
   onToggleCollapsed,
   open,
@@ -21,6 +23,9 @@ export default function Sidebar({
 }) {
   const [search, setSearch] = useState("");
   const [industry, setIndustry] = useState("all");
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
@@ -38,10 +43,44 @@ export default function Sidebar({
       })
       .catch((error) => setInviteError(error.message));
   }, [apiRequest, inviteOpen, user.role]);
+  useEffect(() => {
+    const query = search.trim();
+    if (!query) {
+      setSearchResults(null);
+      setSearchBusy(false);
+      setSearchError("");
+      return undefined;
+    }
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setSearchBusy(true);
+      setSearchError("");
+      const params = new URLSearchParams({ search: query });
+      if (industry !== "all") params.set("industry", industry);
+      apiRequest(`/api/conversations/threads?${params}`)
+        .then(async (response) => {
+          const result = await response.json();
+          if (!response.ok)
+            throw new Error(result.error || "Could not search chats");
+          if (active) setSearchResults(result.threads);
+        })
+        .catch((error) => {
+          if (active) setSearchError(error.message);
+        })
+        .finally(() => {
+          if (active) setSearchBusy(false);
+        });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [apiRequest, industry, search]);
   const filteredThreads = useMemo(
     () =>
-      threads.filter((thread) => {
+      (searchResults || threads).filter((thread) => {
         const matchesSearch =
+          searchResults ||
           `${thread.title} ${thread.messages?.map((message) => message.text).join(" ") || ""}`
             .toLowerCase()
             .includes(search.toLowerCase());
@@ -49,7 +88,7 @@ export default function Sidebar({
           matchesSearch && (industry === "all" || thread.industry === industry)
         );
       }),
-    [threads, search, industry],
+    [threads, searchResults, search, industry],
   );
 
   async function createInvite(event) {
@@ -163,6 +202,19 @@ export default function Sidebar({
               {generatedImages.length}
             </span>
           </button>
+          <button
+            type="button"
+            aria-pressed={section === "requests"}
+            className={section === "requests" ? "selected" : ""}
+            onClick={() => onSectionChange("requests")}
+            title="Service requests"
+          >
+            <span aria-hidden="true">▤</span>
+            <span className="sidebar-section-label">Requests</span>
+            <span className="sidebar-section-count">
+              {serviceRequests.length}
+            </span>
+          </button>
         </nav>
         {section === "chats" ? (
           <>
@@ -197,6 +249,8 @@ export default function Sidebar({
               </div>
             )}
             <nav className="history-list" aria-label="Recent chats">
+              {searchBusy && <p className="history-empty">Searching…</p>}
+              {searchError && <p className="history-empty">{searchError}</p>}
               {filteredThreads.map((thread) => (
                 <div
                   className={`history-row ${thread.id === activeId ? "active" : ""}`}
@@ -228,7 +282,7 @@ export default function Sidebar({
               )}
             </nav>
           </>
-        ) : (
+        ) : section === "gallery" ? (
           <section
             className="sidebar-gallery"
             aria-label="Generated image gallery"
@@ -253,6 +307,55 @@ export default function Sidebar({
               </div>
             ) : (
               <p className="history-empty">Enhanced images appear here.</p>
+            )}
+          </section>
+        ) : (
+          <section className="sidebar-requests" aria-label="Service requests">
+            <div className="history-heading">
+              <p className="history-title">Service Requests</p>
+              <span>{serviceRequests.length}</span>
+            </div>
+            {serviceRequests.length ? (
+              serviceRequests.map((request) => (
+                <article className="service-request-item" key={request.id}>
+                  <div className="service-request-meta">
+                    <strong>{request.category}</strong>
+                    <time dateTime={request.createdAt}>
+                      {new Date(request.createdAt).toLocaleDateString()}
+                    </time>
+                  </div>
+                  {request.requesterEmail && (
+                    <a href={`mailto:${request.requesterEmail}`}>
+                      {request.requesterEmail}
+                    </a>
+                  )}
+                  <p>{request.details}</p>
+                  {user.role === "admin" ? (
+                    <select
+                      aria-label={`Status for ${request.category} request`}
+                      value={request.status}
+                      onChange={(event) =>
+                        void onRequestStatusChange(
+                          request.id,
+                          event.target.value,
+                        )
+                      }
+                    >
+                      <option value="received">Received</option>
+                      <option value="in_review">In review</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  ) : (
+                    <span className="service-request-status">
+                      {request.status.replaceAll("_", " ")}
+                    </span>
+                  )}
+                </article>
+              ))
+            ) : (
+              <p className="history-empty">
+                Submitted requests will appear here.
+              </p>
             )}
           </section>
         )}

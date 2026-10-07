@@ -33,11 +33,15 @@ function createChatRouter(industry) {
               : providerStatus === 429
                 ? "AI provider rate limit reached. Please wait and try again."
                 : "AI provider is temporarily unavailable. Please try again shortly.";
-          return res.status(502).json({ error: errorMessage });
+          return res.status(502).json({
+            error: errorMessage,
+            ...(error.savedConversation || {}),
+          });
         }
         if (error.code === "AI_PROVIDER_EMPTY_RESPONSE") {
           return res.status(502).json({
             error: "AI provider returned an empty response. Please try again.",
+            ...(error.savedConversation || {}),
           });
         }
         if (
@@ -108,11 +112,15 @@ function createPlainChatRouter() {
               : providerStatus === 429
                 ? "AI provider rate limit reached. Please wait and try again."
                 : "AI provider is temporarily unavailable. Please try again shortly.";
-          return res.status(502).json({ error: errorMessage });
+          return res.status(502).json({
+            error: errorMessage,
+            ...(error.savedConversation || {}),
+          });
         }
         if (error.code === "AI_PROVIDER_EMPTY_RESPONSE") {
           return res.status(502).json({
             error: "AI provider returned an empty response. Please try again.",
+            ...(error.savedConversation || {}),
           });
         }
         if (
